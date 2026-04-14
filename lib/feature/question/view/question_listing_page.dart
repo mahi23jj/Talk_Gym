@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
+import 'package:talk_gym/feature/question/view/question_detail_page.dart';
 import 'package:talk_gym/feature/question/viewmodel/question_listing_bloc.dart';
 
 class QuestionListingPage extends StatefulWidget {
@@ -48,9 +49,12 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
       return;
     }
 
-    final double triggerOffset = _scrollController.position.maxScrollExtent - 220;
+    final double triggerOffset =
+        _scrollController.position.maxScrollExtent - 220;
     if (_scrollController.position.pixels >= triggerOffset) {
-      context.read<QuestionListingBloc>().add(const QuestionLoadMoreRequested());
+      context.read<QuestionListingBloc>().add(
+        const QuestionLoadMoreRequested(),
+      );
     }
   }
 
@@ -83,14 +87,18 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
       body: SafeArea(
         child: RefreshIndicator(
           onRefresh: () async {
-            context.read<QuestionListingBloc>().add(const QuestionListingRefreshed());
+            context.read<QuestionListingBloc>().add(
+              const QuestionListingRefreshed(),
+            );
           },
           child: BlocBuilder<QuestionListingBloc, QuestionListingState>(
             builder: (BuildContext context, QuestionListingState state) {
               if (_searchController.text != state.searchQuery) {
                 _searchController.value = _searchController.value.copyWith(
                   text: state.searchQuery,
-                  selection: TextSelection.collapsed(offset: state.searchQuery.length),
+                  selection: TextSelection.collapsed(
+                    offset: state.searchQuery.length,
+                  ),
                 );
               }
 
@@ -150,9 +158,9 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                               return Center(
                                 child: GestureDetector(
                                   onTap: () {
-                                    context
-                                        .read<QuestionListingBloc>()
-                                        .add(const QuestionFiltersCleared());
+                                    context.read<QuestionListingBloc>().add(
+                                      const QuestionFiltersCleared(),
+                                    );
                                     _searchController.clear();
                                     _scrollToTop();
                                   },
@@ -161,9 +169,11 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                                     label: 'Clear all filters',
                                     child: Text(
                                       'Clear filters',
-                                      style: theme.textTheme.bodySmall?.copyWith(
-                                        color: theme.colorScheme.onSurface.withValues(alpha: 0.78),
-                                      ),
+                                      style: theme.textTheme.bodySmall
+                                          ?.copyWith(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.78),
+                                          ),
                                     ),
                                   ),
                                 ),
@@ -181,19 +191,22 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                                 label: Text(
                                   filter,
                                   style: theme.textTheme.bodySmall?.copyWith(
-                                    color: isActive ? Colors.white : AppColors.textSecondary,
+                                    color: isActive
+                                        ? Colors.white
+                                        : AppColors.textSecondary,
                                   ),
                                 ),
                                 selected: isActive,
                                 shape: const StadiumBorder(),
                                 side: BorderSide.none,
-                                materialTapTargetSize: MaterialTapTargetSize.padded,
+                                materialTapTargetSize:
+                                    MaterialTapTargetSize.padded,
                                 selectedColor: AppColors.textPrimary,
                                 backgroundColor: AppColors.cardBackground,
                                 onSelected: (_) {
-                                  context
-                                      .read<QuestionListingBloc>()
-                                      .add(QuestionFilterChanged(filter));
+                                  context.read<QuestionListingBloc>().add(
+                                    QuestionFilterChanged(filter),
+                                  );
                                   _scrollToTop();
                                 },
                               ),
@@ -222,7 +235,8 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                     SliverPadding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       sliver: SliverList.separated(
-                        itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+                        itemCount:
+                            state.items.length + (state.isLoadingMore ? 1 : 0),
                         itemBuilder: (BuildContext context, int index) {
                           if (index >= state.items.length) {
                             return const Padding(
@@ -231,7 +245,9 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                                 child: SizedBox(
                                   width: 22,
                                   height: 22,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
                                 ),
                               ),
                             );
@@ -245,10 +261,50 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                               currentDay: state.currentDay,
                               onTap: item.dayUnlock <= state.currentDay
                                   ? () {
-                                      ScaffoldMessenger.of(context).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Open question: ${item.title}'),
-                                          duration: const Duration(milliseconds: 900),
+                                      Navigator.of(context).push(
+                                        PageRouteBuilder<void>(
+                                          transitionDuration: const Duration(
+                                            milliseconds: 300,
+                                          ),
+                                          reverseTransitionDuration:
+                                              const Duration(milliseconds: 240),
+                                          pageBuilder:
+                                              (
+                                                BuildContext context,
+                                                Animation<double> animation,
+                                                Animation<double>
+                                                secondaryAnimation,
+                                              ) {
+                                                return QuestionDetailPage(
+                                                  item: item,
+                                                );
+                                              },
+                                          transitionsBuilder:
+                                              (
+                                                BuildContext context,
+                                                Animation<double> animation,
+                                                Animation<double>
+                                                secondaryAnimation,
+                                                Widget child,
+                                              ) {
+                                                final Animation<Offset>
+                                                offsetAnimation =
+                                                    Tween<Offset>(
+                                                      begin: const Offset(1, 0),
+                                                      end: Offset.zero,
+                                                    ).animate(
+                                                      CurvedAnimation(
+                                                        parent: animation,
+                                                        curve:
+                                                            Curves.easeOutCubic,
+                                                      ),
+                                                    );
+
+                                                return SlideTransition(
+                                                  position: offsetAnimation,
+                                                  child: child,
+                                                );
+                                              },
                                         ),
                                       );
                                     }
@@ -296,8 +352,8 @@ class _SearchBar extends StatelessWidget {
             maxLines: 1,
             onChanged: onChanged,
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).textTheme.bodyLarge?.color,
-                ),
+              color: Theme.of(context).textTheme.bodyLarge?.color,
+            ),
             decoration: InputDecoration(
               constraints: const BoxConstraints(minHeight: 40),
               hintText: 'Search questions...',
@@ -353,12 +409,17 @@ class _QuestionCard extends StatelessWidget {
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(20),
@@ -385,15 +446,15 @@ class _QuestionCard extends StatelessWidget {
               runSpacing: 6,
               children: item.tags.take(3).map((String tag) {
                 return Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.cardBackground,
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Text(
-                    tag,
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  child: Text(tag, style: theme.textTheme.bodySmall),
                 );
               }).toList(),
             ),
@@ -410,7 +471,9 @@ class _QuestionCard extends StatelessWidget {
       label: isLocked
           ? 'Locked question for day ${item.dayUnlock}: ${item.title}'
           : 'Question: ${item.title}',
-      hint: isLocked ? 'Unavailable until day ${item.dayUnlock}' : 'Open question details',
+      hint: isLocked
+          ? 'Unavailable until day ${item.dayUnlock}'
+          : 'Open question details',
       child: Stack(
         children: <Widget>[
           AnimatedOpacity(
@@ -476,7 +539,10 @@ class _QuestionSkeletonListState extends State<_QuestionSkeletonList>
       builder: (BuildContext context, _) {
         return Column(
           children: List<Widget>.generate(5, (int index) {
-            final double shimmer = (0.55 + (0.45 * (_controller.value))).clamp(0.55, 1);
+            final double shimmer = (0.55 + (0.45 * (_controller.value))).clamp(
+              0.55,
+              1,
+            );
             return Padding(
               padding: const EdgeInsets.only(bottom: 8),
               child: Opacity(
@@ -574,10 +640,7 @@ class _EmptyState extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Text(
-              'No questions found',
-              style: theme.textTheme.bodyLarge,
-            ),
+            Text('No questions found', style: theme.textTheme.bodyLarge),
             const SizedBox(height: 6),
             Text(
               'Try different filters or search term',
@@ -592,10 +655,7 @@ class _EmptyState extends StatelessWidget {
 }
 
 class _AnimatedQuestionCard extends StatelessWidget {
-  const _AnimatedQuestionCard({
-    required this.index,
-    required this.child,
-  });
+  const _AnimatedQuestionCard({required this.index, required this.child});
 
   final int index;
   final Widget child;

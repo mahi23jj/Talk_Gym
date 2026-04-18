@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/behavioral_training/screens/training_intro_screen.dart';
 import 'package:talk_gym/feature/question/viewmodel/question_listing_bloc.dart';
@@ -112,6 +113,19 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                     toolbarHeight: 92,
                     surfaceTintColor: Colors.transparent,
                     backgroundColor: theme.scaffoldBackgroundColor,
+                    actions: <Widget>[
+                      IconButton(
+                        tooltip: 'Open AI Analysis',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const AnalysisResultsPage(),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.analytics_outlined),
+                      ),
+                    ],
                     flexibleSpace: FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
                       title: Column(

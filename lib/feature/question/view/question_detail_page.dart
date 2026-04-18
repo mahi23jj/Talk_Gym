@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 
 const Color _kBackground = Color(0xFFFFFFFF);
@@ -251,13 +252,26 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
     });
 
     HapticFeedback.lightImpact();
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await Future<void>.delayed(const Duration(milliseconds: 3000));
 
     if (!mounted) {
       return;
     }
 
-    Navigator.of(context).pop();
+    Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        pageBuilder: (BuildContext context, Animation<double> animation,
+            Animation<double> secondaryAnimation) {
+          return FadeTransition(
+            opacity: animation,
+            child: AnalysisResultsPage(
+              // key: const Key('analysis_results_page'),
+              // analysis: _mockAnalysisResult,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   String get _formattedTimer {

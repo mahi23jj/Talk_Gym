@@ -7,7 +7,8 @@ import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/analysis_results/data/repository/mock_analysis_results_repository.dart';
 import 'package:talk_gym/feature/analysis_results/viewmodel/analysis_results_bloc.dart';
-import 'package:talk_gym/feature/behavioral_training/screens/final_interview_simulation.dart';
+import 'package:talk_gym/feature/question/data/model/question_item.dart';
+import 'package:talk_gym/feature/star_training/view/star_training_page.dart';
 
 class AnalysisResultsPage extends StatelessWidget {
   const AnalysisResultsPage({super.key});
@@ -386,79 +387,38 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                               const SizedBox(height: 18),
                               Row(
                                 children: <Widget>[
+                                  const SizedBox(width: 12),
                                   Expanded(
-                                    child: OutlinedButton(
-                                      onPressed: () async {
-                                        HapticFeedback.mediumImpact();
-                                        await Clipboard.setData(
-                                          ClipboardData(
-                                            text: state.currentTranscript,
-                                          ),
+                                    child: ElevatedButton(
+                                      onPressed: () {
+                                        final QuestionItem
+                                        question = QuestionItem(
+                                          id: 'analysis_training',
+                                          title: analysis.primaryTrainingMode,
+                                          description:
+                                              'Practice the improved transcript in STAR training mode.',
+                                          tags: const <String>[
+                                            'STAR',
+                                            'Behavioral',
+                                          ],
+                                          dayUnlock: 1,
                                         );
-                                        if (!context.mounted) {
-                                          return;
-                                        }
-                                        context.read<AnalysisResultsBloc>().add(
-                                          const AnalysisReviewed(),
-                                        );
-                                        ScaffoldMessenger.of(
-                                          context,
-                                        ).showSnackBar(
-                                          SnackBar(
-                                            content: const Text(
-                                              'Edited transcript saved.',
-                                            ),
-                                            duration: const Duration(
-                                              seconds: 2,
-                                            ),
-                                            behavior: SnackBarBehavior.floating,
-                                            backgroundColor:
-                                                AppColors.darkCardBackground,
-                                            margin: const EdgeInsets.all(16),
-                                            shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
+
+                                        Navigator.of(context).push(
+                                          MaterialPageRoute<void>(
+                                            builder: (_) => StarTrainingPage(
+                                              question: question,
                                             ),
                                           ),
                                         );
                                       },
-                                      style: OutlinedButton.styleFrom(
-                                        minimumSize: const Size.fromHeight(50),
-                                        foregroundColor: AppColors.textPrimary,
-                                        side: const BorderSide(
-                                          color: AppColors.cardBorder,
-                                        ),
-                                      ),
-                                      child: const Text('Save Changes'),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: ElevatedButton(
-                                      onPressed: state.hasReviewedAnalysis
-                                          ? () {
-                                              HapticFeedback.mediumImpact();
-                                              Navigator.of(context).push(
-                                                MaterialPageRoute<void>(
-                                                  builder: (_) =>
-                                                      FinalInterviewSimulationScreen(
-                                                        questionText: analysis
-                                                            .primaryTrainingMode,
-                                                        preparedAnswer: state
-                                                            .currentTranscript,
-                                                      ),
-                                                ),
-                                              );
-                                            }
-                                          : null,
+
                                       style: ElevatedButton.styleFrom(
                                         minimumSize: const Size.fromHeight(50),
                                         backgroundColor: AppColors.textPrimary,
                                         foregroundColor: Colors.white,
                                       ),
-                                      child: const Text(
-                                        'Continue to Final Interview',
-                                      ),
+                                      child: const Text('Continue to Training'),
                                     ),
                                   ),
                                 ],

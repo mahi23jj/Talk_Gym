@@ -43,6 +43,7 @@ class QuestionListingState {
   const QuestionListingState({
     this.status = QuestionListingStatus.initial,
     this.items = const <QuestionItem>[],
+    this.availableFilters = const <String>['All'],
     this.activeFilter = 'All',
     this.searchQuery = '',
     this.hasMore = true,
@@ -54,6 +55,7 @@ class QuestionListingState {
 
   final QuestionListingStatus status;
   final List<QuestionItem> items;
+  final List<String> availableFilters;
   final String activeFilter;
   final String searchQuery;
   final bool hasMore;
@@ -65,6 +67,7 @@ class QuestionListingState {
   QuestionListingState copyWith({
     QuestionListingStatus? status,
     List<QuestionItem>? items,
+    List<String>? availableFilters,
     String? activeFilter,
     String? searchQuery,
     bool? hasMore,
@@ -77,12 +80,15 @@ class QuestionListingState {
     return QuestionListingState(
       status: status ?? this.status,
       items: items ?? this.items,
+      availableFilters: availableFilters ?? this.availableFilters,
       activeFilter: activeFilter ?? this.activeFilter,
       searchQuery: searchQuery ?? this.searchQuery,
       hasMore: hasMore ?? this.hasMore,
       page: page ?? this.page,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
-      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+      errorMessage: clearErrorMessage
+          ? null
+          : (errorMessage ?? this.errorMessage),
       currentDay: currentDay ?? this.currentDay,
     );
   }
@@ -91,8 +97,8 @@ class QuestionListingState {
 class QuestionListingBloc
     extends Bloc<QuestionListingEvent, QuestionListingState> {
   QuestionListingBloc({required QuestionRepository repository})
-      : _repository = repository,
-        super(const QuestionListingState()) {
+    : _repository = repository,
+      super(const QuestionListingState()) {
     on<QuestionListingInitialized>(_onInitialize);
     on<QuestionListingRefreshed>(_onRefresh);
     on<QuestionSearchChanged>(_onSearchChanged);
@@ -139,12 +145,7 @@ class QuestionListingBloc
     QuestionFiltersCleared event,
     Emitter<QuestionListingState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        activeFilter: 'All',
-        searchQuery: '',
-      ),
-    );
+    emit(state.copyWith(activeFilter: 'All', searchQuery: ''));
     await _loadFirstPage(emit);
   }
 
@@ -152,7 +153,9 @@ class QuestionListingBloc
     QuestionLoadMoreRequested event,
     Emitter<QuestionListingState> emit,
   ) async {
-    if (state.isLoadingMore || !state.hasMore || state.status == QuestionListingStatus.loading) {
+    if (state.isLoadingMore ||
+        !state.hasMore ||
+        state.status == QuestionListingStatus.loading) {
       return;
     }
 
@@ -170,6 +173,7 @@ class QuestionListingBloc
         state.copyWith(
           status: QuestionListingStatus.success,
           items: <QuestionItem>[...state.items, ...result.items],
+          availableFilters: result.availableFilters,
           page: state.page + 1,
           hasMore: result.hasMore,
           isLoadingMore: false,
@@ -214,6 +218,10 @@ class QuestionListingBloc
         state.copyWith(
           status: QuestionListingStatus.success,
           items: result.items,
+          availableFilters: result.availableFilters,
+          activeFilter: result.availableFilters.contains(state.activeFilter)
+              ? state.activeFilter
+              : 'All',
           page: 0,
           hasMore: result.hasMore,
           isLoadingMore: false,

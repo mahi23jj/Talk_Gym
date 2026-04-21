@@ -22,7 +22,7 @@ class MockQuestionRepository implements QuestionRepository {
     final String thirdTag = _tagPool[(i + 4) % _tagPool.length];
 
     return QuestionItem(
-      id: 'q_$index',
+      id: index,
       title: 'Tell me about a time you showed $firstTag under pressure',
       description:
           'Share a structured STAR response with context, action, and measurable impact for scenario $index.',
@@ -56,13 +56,26 @@ class MockQuestionRepository implements QuestionRepository {
 
       return item.title.toLowerCase().contains(normalizedSearch) ||
           item.description.toLowerCase().contains(normalizedSearch) ||
-          item.tags.any((String tag) =>
-              tag.toLowerCase().contains(normalizedSearch));
+          item.tags.any(
+            (String tag) => tag.toLowerCase().contains(normalizedSearch),
+          );
     }).toList();
 
     final int start = page * pageSize;
     if (start >= filtered.length) {
-      return const QuestionPageResult(items: <QuestionItem>[], hasMore: false);
+      return const QuestionPageResult(
+        items: <QuestionItem>[],
+        hasMore: false,
+        availableFilters: <String>[
+          'All',
+          'Leadership',
+          'Conflict',
+          'Teamwork',
+          'Failure',
+          'Success',
+          'Adaptability',
+        ],
+      );
     }
 
     final int end = (start + pageSize).clamp(0, filtered.length);
@@ -71,6 +84,15 @@ class MockQuestionRepository implements QuestionRepository {
     return QuestionPageResult(
       items: pageItems,
       hasMore: end < filtered.length,
+      availableFilters: const <String>[
+        'All',
+        'Leadership',
+        'Conflict',
+        'Teamwork',
+        'Failure',
+        'Success',
+        'Adaptability',
+      ],
     );
   }
 }

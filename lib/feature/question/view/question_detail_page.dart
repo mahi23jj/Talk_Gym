@@ -366,7 +366,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     try {
       await _submissionService.submitAnswer(
-        questionId: widget.item.id,
+        questionId: widget.item.id.toString(),
         questionTitle: widget.item.title,
         answerText: _textController.text.trim(),
         durationSeconds: _recordingSeconds,

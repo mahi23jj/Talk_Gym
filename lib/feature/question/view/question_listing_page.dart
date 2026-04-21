@@ -17,16 +17,6 @@ class QuestionListingPage extends StatefulWidget {
 }
 
 class _QuestionListingPageState extends State<QuestionListingPage> {
-  static const List<String> _filters = <String>[
-    'All',
-    'Leadership',
-    'Conflict',
-    'Teamwork',
-    'Failure',
-    'Success',
-    'Adaptability',
-  ];
-
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
@@ -95,6 +85,8 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
           },
           child: BlocBuilder<QuestionListingBloc, QuestionListingState>(
             builder: (BuildContext context, QuestionListingState state) {
+              final List<String> filters = state.availableFilters;
+
               if (_searchController.text != state.searchQuery) {
                 _searchController.value = _searchController.value.copyWith(
                   text: state.searchQuery,
@@ -169,7 +161,7 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
                           itemBuilder: (BuildContext context, int index) {
-                            if (index == _filters.length) {
+                            if (index == filters.length) {
                               return Center(
                                 child: GestureDetector(
                                   onTap: () {
@@ -195,7 +187,7 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                               );
                             }
 
-                            final String filter = _filters[index];
+                            final String filter = filters[index];
                             final bool isActive = state.activeFilter == filter;
 
                             return Semantics(
@@ -228,7 +220,7 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                             );
                           },
                           separatorBuilder: (_, __) => const SizedBox(width: 8),
-                          itemCount: _filters.length + 1,
+                          itemCount: filters.length + 1,
                         ),
                       ),
                     ),
@@ -291,7 +283,7 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                                                 secondaryAnimation,
                                               ) {
                                                 // return const BehavioralTrainingIntroScreen();
-                                                return  QuestionDetailPage(
+                                                return QuestionDetailPage(
                                                   item: item,
                                                 );
                                               },

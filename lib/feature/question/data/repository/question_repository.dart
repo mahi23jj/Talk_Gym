@@ -4,10 +4,12 @@ class QuestionPageResult {
   const QuestionPageResult({
     required this.items,
     required this.hasMore,
+    required this.availableFilters,
   });
 
   final List<QuestionItem> items;
   final bool hasMore;
+  final List<String> availableFilters;
 }
 
 abstract class QuestionRepository {

@@ -393,7 +393,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                       onPressed: () {
                                         final QuestionItem
                                         question = QuestionItem(
-                                          id: 'analysis_training',
+                                          id: -1,
                                           title: analysis.primaryTrainingMode,
                                           description:
                                               'Practice the improved transcript in STAR training mode.',

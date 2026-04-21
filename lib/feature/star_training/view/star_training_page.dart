@@ -52,7 +52,7 @@ class _StarTrainingViewHost extends StatelessWidget {
                   final QuestionItem target =
                       session?.question ??
                       const QuestionItem(
-                        id: 'fallback',
+                        id: -2,
                         title:
                             'Tell me about a time you faced a conflict at work',
                         description: 'Practice with STAR.',

@@ -1,9 +1,17 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:record/record.dart';
+import 'package:talk_gym/core/voice_recording.dart';
+import 'package:talk_gym/core/widget/recording.dart';
 import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
+import 'package:talk_gym/feature/question/data/repository/question_answer_submission_service.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 
 const Color _kBackground = Color(0xFFFFFFFF);
@@ -34,6 +42,13 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
     with SingleTickerProviderStateMixin {
   final TextEditingController _textController = TextEditingController();
   final Random _random = Random();
+  final AudioRecorder _recorder = AudioRecorder();
+  final AudioPlayer _player = AudioPlayer();
+  final QuestionAnswerSubmissionService _submissionService =
+      QuestionAnswerSubmissionService();
+
+  StreamSubscription<PlayerState>? _playerStateSubscription;
+  StreamSubscription<Duration>? _playerPositionSubscription;
 
   bool _isLoading = true;
   bool _isTipExpanded = false;
@@ -42,7 +57,6 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
   bool _micPermissionAsked = false;
   bool _micPermissionGranted = false;
   bool _permissionDenied = false;
-  bool _showTrashZone = false;
   bool _compareAnswers = false;
   bool _isSubmitting = false;
   bool _showSuccessCheck = false;
@@ -51,10 +65,14 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
   Timer? _waveTimer;
   int _recordingSeconds = 0;
   int _waveTick = 0;
-  double _dragDistance = 0;
+  Duration _recordedDuration = Duration.zero;
+  String? _recordedAudioPath;
+  bool _isPlaying = false;
   double _playProgress = 0.36;
   double _ambientNoise = 0.2;
   List<double> _waveLevels = List<double>.filled(12, 0.25);
+  int _recordingWidgetSeed = 0;
+  bool _isVoiceBusy = false;
 
   final List<_PastAnswer> _pastAnswers = <_PastAnswer>[
     const _PastAnswer(dateLabel: 'Apr 12', durationLabel: '0:39'),
@@ -64,6 +82,39 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
   @override
   void initState() {
     super.initState();
+    _playerStateSubscription = _player.playerStateStream.listen((
+      PlayerState state,
+    ) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isPlaying = state.playing;
+        if (state.processingState == ProcessingState.completed) {
+          _isPlaying = false;
+          _playProgress = 1;
+        }
+      });
+    });
+
+    _playerPositionSubscription = _player.positionStream.listen((
+      Duration position,
+    ) {
+      if (!mounted || _recordedDuration.inMilliseconds <= 0) {
+        return;
+      }
+
+      final double progress =
+          (position.inMilliseconds / _recordedDuration.inMilliseconds)
+              .clamp(0.0, 1.0)
+              .toDouble();
+
+      setState(() {
+        _playProgress = progress;
+      });
+    });
+
     Future<void>.delayed(const Duration(milliseconds: 850), () {
       if (!mounted) {
         return;
@@ -77,13 +128,53 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
   @override
   void dispose() {
     _waveTimer?.cancel();
+    unawaited(_player.stop());
+    unawaited(_recorder.stop());
+    _playerStateSubscription?.cancel();
+    _playerPositionSubscription?.cancel();
+    _submissionService.dispose();
     _textController.dispose();
+    _player.dispose();
+    _recorder.dispose();
     super.dispose();
   }
 
   Future<void> _onMicPressed() async {
-    if (_recordingState == _RecordingState.recording) {
-      _stopRecording();
+    await _startRecording();
+  }
+
+  Future<void> _requestMicPermission() async {
+    _micPermissionAsked = true;
+
+    final PermissionStatus status = await Permission.microphone.request();
+    if (!mounted) {
+      return;
+    }
+
+    final bool allowed = status.isGranted;
+    setState(() {
+      _micPermissionGranted = allowed;
+      _permissionDenied = !allowed;
+      if (_permissionDenied) {
+        _useTextInput = true;
+      }
+    });
+
+    if (!allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Microphone permission is required to record.'),
+          action: status.isPermanentlyDenied
+              ? SnackBarAction(label: 'Settings', onPressed: openAppSettings)
+              : null,
+        ),
+      );
+    }
+  }
+
+  Future<void> _startRecording() async {
+    if (_recordingState == _RecordingState.recording ||
+        _recordingState == _RecordingState.paused) {
       return;
     }
 
@@ -94,68 +185,25 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       }
     }
 
-    _startRecording();
-  }
+    final Directory tempDirectory = await getTemporaryDirectory();
+    final String filePath =
+        '${tempDirectory.path}/question_${widget.item.id}_${DateTime.now().millisecondsSinceEpoch}.m4a';
 
-  Future<void> _requestMicPermission() async {
-    _micPermissionAsked = true;
-    final bool? allowed = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          backgroundColor: _kBackground,
-          title: const Text(
-            'Microphone Permission',
-            style: TextStyle(color: _kPrimaryText, fontWeight: FontWeight.w600),
-          ),
-          content: const Text(
-            'Talk Gym needs microphone access to record your answer.',
-            style: TextStyle(color: _kSecondaryText),
-          ),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text(
-                'Deny',
-                style: TextStyle(color: _kInteractiveSoft),
-              ),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text(
-                'Allow',
-                style: TextStyle(color: _kInteractive),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (!mounted) {
-      return;
-    }
-
-    setState(() {
-      _micPermissionGranted = allowed == true;
-      _permissionDenied = allowed != true;
-      if (_permissionDenied) {
-        _useTextInput = true;
-      }
-    });
-  }
-
-  void _startRecording() {
     HapticFeedback.mediumImpact();
     _waveTimer?.cancel();
+    await _player.stop();
     setState(() {
       _recordingState = _RecordingState.recording;
       _recordingSeconds = 0;
       _waveTick = 0;
-      _showTrashZone = false;
-      _dragDistance = 0;
       _playProgress = 0;
+      _recordedDuration = Duration.zero;
+      _recordedAudioPath = filePath;
+      _isPlaying = false;
+      _permissionDenied = false;
     });
+
+    await _recorder.start(const RecordConfig(), path: filePath);
 
     _waveTimer = Timer.periodic(const Duration(milliseconds: 140), (
       Timer timer,
@@ -170,12 +218,14 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       setState(() {
         _waveLevels = List<double>.generate(12, (_) {
           if (_recordingState == _RecordingState.paused) {
-            return 0.18;
+            return 0.12 + (_random.nextDouble() * 0.12);
           }
           return 0.2 + (_random.nextDouble() * 0.8);
         });
 
-        _ambientNoise = 0.2 + (_random.nextDouble() * 0.7);
+        _ambientNoise = _recordingState == _RecordingState.paused
+            ? 0.05 + (_random.nextDouble() * 0.18)
+            : 0.2 + (_random.nextDouble() * 0.7);
 
         if (shouldCountSecond && _recordingState == _RecordingState.recording) {
           _recordingSeconds += 1;
@@ -184,61 +234,122 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
     });
   }
 
-  void _pauseOrResumeRecording() {
+  Future<void> _pauseRecording() async {
+    if (_recordingState != _RecordingState.recording) {
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    await _recorder.pause();
+    setState(() {
+      _recordingState = _RecordingState.paused;
+    });
+  }
+
+  Future<void> _resumeRecording() async {
+    if (_recordingState != _RecordingState.paused) {
+      return;
+    }
+
+    HapticFeedback.selectionClick();
+    await _recorder.resume();
+    setState(() {
+      _recordingState = _RecordingState.recording;
+    });
+  }
+
+  Future<void> _stopRecording() async {
     if (_recordingState != _RecordingState.recording &&
         _recordingState != _RecordingState.paused) {
       return;
     }
 
-    HapticFeedback.selectionClick();
-    setState(() {
-      _recordingState = _recordingState == _RecordingState.recording
-          ? _RecordingState.paused
-          : _RecordingState.recording;
-    });
-  }
-
-  void _stopRecording() {
     HapticFeedback.heavyImpact();
     _waveTimer?.cancel();
+    final String? recordedPath = await _recorder.stop();
+    final String? path = recordedPath ?? _recordedAudioPath;
+
+    if (path != null && await File(path).exists()) {
+      final Duration? duration = await _player.setFilePath(path);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _recordedAudioPath = path;
+        _recordedDuration =
+            duration ??
+            Duration(seconds: _recordingSeconds == 0 ? 1 : _recordingSeconds);
+        _playProgress = 0;
+      });
+    }
+
     setState(() {
       _recordingState = _RecordingState.review;
-      _showTrashZone = false;
-      _dragDistance = 0;
-      if (_recordingSeconds == 0) {
-        _recordingSeconds = 45;
-      }
-      _playProgress = 0.35;
     });
   }
 
-  void _cancelRecording() {
+  Future<void> _cancelRecording() async {
+    final String? path = _recordedAudioPath;
     _waveTimer?.cancel();
+    await _recorder.stop();
+    await _player.stop();
+    if (path != null) {
+      final File file = File(path);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
+
     setState(() {
       _recordingState = _RecordingState.idle;
       _recordingSeconds = 0;
-      _showTrashZone = false;
-      _dragDistance = 0;
+      _recordedAudioPath = null;
+      _recordedDuration = Duration.zero;
+      _isPlaying = false;
+      _playProgress = 0;
       _waveLevels = List<double>.filled(12, 0.25);
     });
   }
 
-  void _resetToIdle() {
+  Future<void> _resetToIdle() async {
+    _textController.clear();
+    if (!mounted) {
+      return;
+    }
+
     setState(() {
-      _recordingState = _RecordingState.idle;
+      _recordedAudioPath = null;
       _recordingSeconds = 0;
-      _playProgress = 0;
-      _showTrashZone = false;
-      _dragDistance = 0;
+      _recordingState = _RecordingState.idle;
+      _isVoiceBusy = false;
+      _recordingWidgetSeed += 1;
+      _showSuccessCheck = false;
+      _permissionDenied = false;
+      _useTextInput = false;
     });
   }
 
   Future<void> _submitAnswer() async {
-    final bool hasVoice = _recordingState == _RecordingState.review;
+    if (!mounted) {
+      return;
+    }
+
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    if (_isVoiceBusy) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Stop recording before submitting.')),
+      );
+      return;
+    }
+
+    final bool hasVoice =
+        _recordedAudioPath != null && File(_recordedAudioPath!).existsSync();
     final bool hasText = _textController.text.trim().isNotEmpty;
 
     if (!hasVoice && !hasText) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Add a recording or type your answer first.'),
         ),
@@ -252,7 +363,32 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
     });
 
     HapticFeedback.lightImpact();
-    await Future<void>.delayed(const Duration(milliseconds: 3000));
+
+    try {
+      await _submissionService.submitAnswer(
+        questionId: widget.item.id,
+        questionTitle: widget.item.title,
+        answerText: _textController.text.trim(),
+        durationSeconds: _recordingSeconds,
+        voiceFilePath: hasVoice ? _recordedAudioPath : null,
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _isSubmitting = false;
+        _showSuccessCheck = false;
+      });
+
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not submit answer: $error')),
+      );
+      return;
+    }
+
+    await Future<void>.delayed(const Duration(milliseconds: 500));
 
     if (!mounted) {
       return;
@@ -260,16 +396,17 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     Navigator.of(context).push(
       PageRouteBuilder<void>(
-        pageBuilder: (BuildContext context, Animation<double> animation,
-            Animation<double> secondaryAnimation) {
-          return FadeTransition(
-            opacity: animation,
-            child: AnalysisResultsPage(
-              // key: const Key('analysis_results_page'),
-              // analysis: _mockAnalysisResult,
-            ),
-          );
-        },
+        pageBuilder:
+            (
+              BuildContext context,
+              Animation<double> animation,
+              Animation<double> secondaryAnimation,
+            ) {
+              return FadeTransition(
+                opacity: animation,
+                child: AnalysisResultsPage(),
+              );
+            },
       ),
     );
   }
@@ -594,33 +731,54 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
             ),
           ),
           const SizedBox(height: 12),
-          if (_permissionDenied)
-            _buildPermissionError()
-          else if (_recordingState == _RecordingState.idle)
-            _buildIdleState()
-          else if (_recordingState == _RecordingState.recording ||
-              _recordingState == _RecordingState.paused)
-            _buildRecordingActiveState()
-          else
-            _buildReviewState(),
-          const SizedBox(height: 10),
-          if (_useTextInput) _buildTextAnswerInput(),
-          Align(
-            alignment: Alignment.center,
-            child: TextButton(
-              onPressed: () => setState(() => _useTextInput = !_useTextInput),
-              child: Text(
-                _useTextInput ? 'Use voice input' : 'Switch to text',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF666666)),
-              ),
-            ),
+          VoiceRecorderWidget(
+            key: ValueKey<int>(_recordingWidgetSeed),
+            filePrefix: 'question_${widget.item.id}',
+            showTextToggle: true,
+            textMode: _useTextInput,
+            initialText: _textController.text,
+            initialPath: _recordedAudioPath,
+            initialDuration: _recordingSeconds,
+            initialWaveform: _waveLevels,
+            onTextModeToggle: () {
+              setState(() {
+                _useTextInput = !_useTextInput;
+              });
+            },
+            onTextChanged: (String text) {
+              _textController.text = text;
+            },
+            onFinished: (String path, int duration, List<double> waveform) {
+              setState(() {
+                _recordedAudioPath = path;
+                _recordingSeconds = duration;
+                _waveLevels = List<double>.from(waveform);
+                _recordingState = _RecordingState.review;
+                _isVoiceBusy = false;
+              });
+            },
+            onCleared: () {
+              setState(() {
+                _recordedAudioPath = null;
+                _recordingSeconds = 0;
+                _recordingState = _RecordingState.idle;
+                _isVoiceBusy = false;
+                _waveLevels = List<double>.filled(12, 0.25);
+              });
+            },
+            onStateChanged: (VoiceRecorderPhase phase) {
+              setState(() {
+                _isVoiceBusy =
+                    phase == VoiceRecorderPhase.recording ||
+                    phase == VoiceRecorderPhase.paused;
+                if (phase == VoiceRecorderPhase.recording) {
+                  _recordingState = _RecordingState.recording;
+                } else if (phase == VoiceRecorderPhase.paused) {
+                  _recordingState = _RecordingState.paused;
+                }
+              });
+            },
           ),
-          if (_micPermissionAsked)
-            const Text(
-              'First use prompts microphone permission. If denied, text input remains available.',
-              textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: _kTertiaryText),
-            ),
         ],
       ),
     );
@@ -706,103 +864,28 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     return Column(
       children: <Widget>[
-        if (_showTrashZone)
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            margin: const EdgeInsets.only(bottom: 10),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF0F0F0),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: _kBorder),
-            ),
-            child: const Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                Icon(
-                  Icons.delete_outline_rounded,
-                  size: 18,
-                  color: _kInteractive,
-                ),
-                SizedBox(width: 6),
-                Text(
-                  'Release to cancel',
-                  style: TextStyle(color: _kSecondaryText),
-                ),
-              ],
-            ),
+        Container(
+          width: 92,
+          height: 92,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: _kInteractive.withValues(alpha: isPaused ? 0.12 : 0.22),
           ),
-        GestureDetector(
-          onTap: _onMicPressed,
-          onDoubleTap: _pauseOrResumeRecording,
-          onVerticalDragUpdate: (DragUpdateDetails details) {
-            if (details.delta.dy <= 0) {
-              return;
-            }
-
-            setState(() {
-              _dragDistance += details.delta.dy;
-              _showTrashZone = _dragDistance > 34;
-            });
-          },
-          onVerticalDragEnd: (_) {
-            final bool cancel = _dragDistance > 86;
-            if (cancel) {
-              _cancelRecording();
-              return;
-            }
-            setState(() {
-              _dragDistance = 0;
-              _showTrashZone = false;
-            });
-          },
-          child: Stack(
-            alignment: Alignment.center,
-            children: <Widget>[
-              TweenAnimationBuilder<double>(
-                tween: Tween<double>(begin: 1, end: isPaused ? 1 : 1.08),
-                duration: const Duration(milliseconds: 1000),
-                curve: Curves.easeOut,
-                builder: (BuildContext context, double scale, Widget? child) {
-                  return Container(
-                    width: 88,
-                    height: 88,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _kInteractive.withValues(
-                        alpha: isPaused ? 0 : 0.3,
-                      ),
-                    ),
-                    transform: Matrix4.identity()..scale(scale),
-                  );
-                },
+          child: Center(
+            child: Container(
+              width: 70,
+              height: 70,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0F0F0),
+                shape: BoxShape.circle,
+                border: Border.all(color: _kInteractive, width: 1.5),
               ),
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF0F0F0),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: _kInteractive, width: 1.5),
-                ),
-                child: Center(
-                  child: isPaused
-                      ? const Icon(
-                          Icons.pause_rounded,
-                          color: _kInteractive,
-                          size: 32,
-                        )
-                      : Container(
-                          width: 20,
-                          height: 20,
-                          decoration: BoxDecoration(
-                            color: _kInteractive,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                        ),
-                ),
+              child: Icon(
+                isPaused ? Icons.pause_rounded : Icons.mic_rounded,
+                color: _kInteractive,
+                size: 32,
               ),
-            ],
+            ),
           ),
         ),
         const SizedBox(height: 12),
@@ -827,36 +910,48 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
-            TextButton(
+            OutlinedButton(
               onPressed: _cancelRecording,
-              child: const Text(
-                'Cancel',
-                style: TextStyle(color: _kInteractiveSoft),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: _kInteractiveSoft,
+                side: const BorderSide(color: _kBorder),
               ),
+              child: const Text('Cancel'),
             ),
-            const SizedBox(width: 18),
-            Semantics(
-              button: true,
-              label: 'Stop recording',
-              child: TextButton(
-                onPressed: _stopRecording,
-                child: const Text(
-                  'Stop',
-                  style: TextStyle(color: _kInteractive),
-                ),
+            const SizedBox(width: 10),
+            FilledButton.tonal(
+              onPressed: isPaused ? _resumeRecording : _pauseRecording,
+              style: FilledButton.styleFrom(
+                foregroundColor: _kInteractive,
+                backgroundColor: const Color(0xFFEFEFEF),
               ),
+              child: Text(isPaused ? 'Resume' : 'Pause'),
+            ),
+            const SizedBox(width: 10),
+            ElevatedButton(
+              onPressed: _stopRecording,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _kInteractive,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Stop'),
             ),
           ],
         ),
+        const SizedBox(height: 4),
         const Text(
-          'Double tap to pause or resume',
+          'Use the controls below to pause, resume, or cancel the recording.',
           style: TextStyle(fontSize: 12, color: _kTertiaryText),
+          textAlign: TextAlign.center,
         ),
       ],
     );
   }
 
   Widget _buildReviewState() {
+    final bool canPlay =
+        _recordedAudioPath != null && File(_recordedAudioPath!).existsSync();
+
     return Column(
       children: <Widget>[
         Row(
@@ -887,30 +982,26 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
           mainAxisAlignment: MainAxisAlignment.center,
           children: <Widget>[
             Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: const BoxDecoration(
                 color: Color(0xFFF0F0F0),
                 shape: BoxShape.circle,
               ),
               child: IconButton(
                 padding: EdgeInsets.zero,
-                icon: const Icon(
-                  Icons.play_arrow_rounded,
-                  size: 18,
+                icon: Icon(
+                  _isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                  size: 20,
                   color: _kInteractive,
                 ),
-                onPressed: () {
-                  setState(() {
-                    _playProgress = (_playProgress + 0.15).clamp(0.0, 1.0);
-                  });
-                },
+                onPressed: canPlay ? _togglePlayback : null,
               ),
             ),
             const SizedBox(width: 10),
             Container(
-              width: 32,
-              height: 32,
+              width: 40,
+              height: 40,
               decoration: const BoxDecoration(
                 color: Color(0xFFF0F0F0),
                 shape: BoxShape.circle,
@@ -919,7 +1010,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                 padding: EdgeInsets.zero,
                 icon: const Icon(
                   Icons.delete_outline_rounded,
-                  size: 18,
+                  size: 20,
                   color: _kInteractive,
                 ),
                 onPressed: _resetToIdle,
@@ -938,15 +1029,57 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
           ),
           child: Slider(
             value: _playProgress,
-            onChanged: (double value) => setState(() => _playProgress = value),
+            onChanged: canPlay
+                ? (double value) => _seekToProgress(value)
+                : null,
           ),
         ),
         const Text(
-          'Saved',
+          'Saved locally and ready to submit',
           style: TextStyle(fontSize: 12, color: Color(0xFF666666)),
         ),
       ],
     );
+  }
+
+  Future<void> _togglePlayback() async {
+    final String? path = _recordedAudioPath;
+    if (path == null || !File(path).existsSync()) {
+      return;
+    }
+
+    if (_isPlaying) {
+      await _player.pause();
+      return;
+    }
+
+    final Duration? duration = await _player.setFilePath(path);
+    if (duration != null && mounted) {
+      setState(() {
+        _recordedDuration = duration;
+      });
+    }
+
+    await _player.play();
+  }
+
+  Future<void> _seekToProgress(double value) async {
+    if (_recordedDuration.inMilliseconds <= 0) {
+      return;
+    }
+
+    final Duration target = Duration(
+      milliseconds: (_recordedDuration.inMilliseconds * value).round(),
+    );
+
+    await _player.seek(target);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _playProgress = value.clamp(0.0, 1.0);
+    });
   }
 
   Widget _buildTextAnswerInput() {

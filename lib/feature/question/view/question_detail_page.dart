@@ -10,6 +10,8 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:talk_gym/core/voice_recording.dart';
 import 'package:talk_gym/core/widget/recording.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
+import 'package:talk_gym/feature/analysis_results/data/repository/static_analysis_results_repository.dart';
 import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
 import 'package:talk_gym/feature/question/data/repository/question_answer_submission_service.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
@@ -26,6 +28,8 @@ const Color _kInteractiveSoft = Color(0xFF444444);
 const Color _kDivider = Color(0xFFE5E5E5);
 const Color _kWaveActive = Color(0xFF333333);
 const Color _kWaveInactive = Color(0xFFD0D0D0);
+const String _kApiBearerToken =
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYWhsZXQiLCJlbWFpbCI6InNvbG9tb25tYWhpNzgyQGdtYWlsLmNvbSIsImV4cCI6MTc3NjgxNzYzOX0.Q4v37I6MzFRq35Yfed_sAM2yLM6mMn16be2RPj8n3yI";
 
 enum _RecordingState { idle, recording, paused, review }
 
@@ -346,12 +350,20 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     final bool hasVoice =
         _recordedAudioPath != null && File(_recordedAudioPath!).existsSync();
-    final bool hasText = _textController.text.trim().isNotEmpty;
 
-    if (!hasVoice && !hasText) {
+    if (!hasVoice) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Record your answer before submitting.')),
+      );
+      return;
+    }
+
+    if (_kApiBearerToken.isEmpty) {
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Add a recording or type your answer first.'),
+          content: Text(
+            'Missing API_BEARER_TOKEN. Start app with --dart-define=API_BEARER_TOKEN=your_token',
+          ),
         ),
       );
       return;
@@ -359,18 +371,18 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     setState(() {
       _isSubmitting = true;
-      _showSuccessCheck = true;
+      _showSuccessCheck = false;
     });
 
     HapticFeedback.lightImpact();
 
+    AnalysisResult analysisResult;
     try {
-      await _submissionService.submitAnswer(
+      analysisResult = await _submissionService.submitAndAwaitResult(
         questionId: widget.item.id.toString(),
-        questionTitle: widget.item.title,
-        answerText: _textController.text.trim(),
         durationSeconds: _recordingSeconds,
-        voiceFilePath: hasVoice ? _recordedAudioPath : null,
+        bearerToken: _kApiBearerToken,
+        voiceFilePath: _recordedAudioPath!,
       );
     } catch (error) {
       if (!mounted) {
@@ -388,7 +400,12 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       return;
     }
 
-    await Future<void>.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      _showSuccessCheck = true;
+      _isSubmitting = false;
+    });
+
+    await Future<void>.delayed(const Duration(milliseconds: 280));
 
     if (!mounted) {
       return;
@@ -404,7 +421,9 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
             ) {
               return FadeTransition(
                 opacity: animation,
-                child: AnalysisResultsPage(),
+                child: AnalysisResultsPage(
+                  repository: StaticAnalysisResultsRepository(analysisResult),
+                ),
               );
             },
       ),
@@ -458,6 +477,15 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
               ],
             ),
           ),
+          if (_isSubmitting)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.black.withValues(alpha: 0.12),
+                  child: const Center(child: _SubmissionLoadingCard()),
+                ),
+              ),
+            ),
           if (_showSuccessCheck)
             Positioned.fill(
               child: IgnorePointer(
@@ -1381,6 +1409,49 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
         const SizedBox(height: 16),
         block(height: 80, radius: 16),
       ],
+    );
+  }
+}
+
+class _SubmissionLoadingCard extends StatelessWidget {
+  const _SubmissionLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 220,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: _kBorder),
+      ),
+      child: const Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ),
+          SizedBox(height: 10),
+          Text(
+            'Analyzing your answer...',
+            style: TextStyle(
+              color: _kPrimaryText,
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          SizedBox(height: 4),
+          Text(
+            'Please wait while we process audio',
+            style: TextStyle(color: _kSecondaryText, fontSize: 12),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
     );
   }
 }

@@ -125,12 +125,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     emit(const AuthLoading());
 
     try {
-      await _repository.register(
+      final AuthResponse response = await _repository.register(
         username: event.username.trim(),
         email: event.email.trim(),
         password: event.password,
         passwordConfirm: event.passwordConfirm,
       );
+      await _repository.saveToken(response.token);
       emit(const SignUpSuccess());
       emit(const Unauthenticated());
     } on AuthException catch (error) {
@@ -181,9 +182,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     emit(
-      const Authenticated(
-        token: 'mock_jwt_token',
-        user: AuthUser(id: '1', username: 'testuser', email: 'user@example.com'),
+      Authenticated(
+        token: token,
+        user: const AuthUser(id: 'stored', username: 'authenticated_user', email: ''),
       ),
     );
   }

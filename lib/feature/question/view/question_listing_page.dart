@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
-import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/question/view/question_detail_page.dart';
 // import 'package:talk_gym/feature/behavioral_training/screens/training_intro_screen.dart';
@@ -110,9 +109,11 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                       IconButton(
                         tooltip: 'Open AI Analysis',
                         onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => const AnalysisResultsPage(),
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                'Open analysis from a submitted attempt first.',
+                              ),
                             ),
                           );
                         },

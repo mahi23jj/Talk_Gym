@@ -10,8 +10,6 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:talk_gym/core/voice_recording.dart';
 import 'package:talk_gym/core/widget/recording.dart';
-import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
-import 'package:talk_gym/feature/analysis_results/data/repository/static_analysis_results_repository.dart';
 import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
 import 'package:talk_gym/feature/question/data/repository/question_answer_submission_service.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
@@ -28,8 +26,6 @@ const Color _kInteractiveSoft = Color(0xFF444444);
 const Color _kDivider = Color(0xFFE5E5E5);
 const Color _kWaveActive = Color(0xFF333333);
 const Color _kWaveInactive = Color(0xFFD0D0D0);
-const String _kApiBearerToken =
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJtYWhsZXQiLCJlbWFpbCI6InNvbG9tb25tYWhpNzgyQGdtYWlsLmNvbSIsImV4cCI6MTc3NjgxNzYzOX0.Q4v37I6MzFRq35Yfed_sAM2yLM6mMn16be2RPj8n3yI";
 
 enum _RecordingState { idle, recording, paused, review }
 
@@ -358,17 +354,6 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       return;
     }
 
-    if (_kApiBearerToken.isEmpty) {
-      messenger.showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Missing API_BEARER_TOKEN. Start app with --dart-define=API_BEARER_TOKEN=your_token',
-          ),
-        ),
-      );
-      return;
-    }
-
     setState(() {
       _isSubmitting = true;
       _showSuccessCheck = false;
@@ -376,12 +361,11 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     HapticFeedback.lightImpact();
 
-    AnalysisResult analysisResult;
+    final int attemptId;
     try {
-      analysisResult = await _submissionService.submitAndAwaitResult(
+      attemptId = await _submissionService.submitAndAwaitResult(
         questionId: widget.item.id.toString(),
         durationSeconds: _recordingSeconds,
-        bearerToken: _kApiBearerToken,
         voiceFilePath: _recordedAudioPath!,
       );
     } catch (error) {
@@ -421,9 +405,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
             ) {
               return FadeTransition(
                 opacity: animation,
-                child: AnalysisResultsPage(
-                  repository: StaticAnalysisResultsRepository(analysisResult),
-                ),
+                child: AnalysisResultsPage(attemptId: attemptId.toString()),
               );
             },
       ),

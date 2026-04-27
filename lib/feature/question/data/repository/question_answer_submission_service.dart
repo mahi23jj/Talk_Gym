@@ -3,13 +3,14 @@ import 'dart:io';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
+import 'package:talk_gym/core/auth_token_storage.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 
 class QuestionAnswerSubmissionService {
   QuestionAnswerSubmissionService({http.Client? client, Uri? baseUri})
     : _client = client ?? http.Client(),
       _ownsClient = client == null,
-      _baseUri = baseUri ?? Uri.parse('http://127.0.0.1:8000');
+      _baseUri = baseUri ?? Uri.parse('https://f2da-102-212-68-34.ngrok-free.app');
 
   final http.Client _client;
   final bool _ownsClient;
@@ -18,16 +19,18 @@ class QuestionAnswerSubmissionService {
   Future<int> submitAnswer({
     required String questionId,
     required int durationSeconds,
-    required String bearerToken,
+    String? bearerToken,
     required String voiceFilePath,
   }) async {
+    final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
+
     final Uri endpoint = _baseUri.replace(
       path: '/api/v1/attempt/submit/$questionId',
     );
 
     final http.MultipartRequest request =
         http.MultipartRequest('POST', endpoint)
-          ..headers['Authorization'] = 'Bearer $bearerToken'
+          ..headers['Authorization'] = 'Bearer $resolvedBearerToken'
           ..headers['Accept'] = 'application/json'
           ..fields['duration_sec'] = durationSeconds.toString();
 
@@ -62,12 +65,13 @@ class QuestionAnswerSubmissionService {
     return jobId;
   }
 
-  Future<AnalysisResult> pollResultUntilDone({
+  Future<void> pollResultUntilDone({
     required int jobId,
-    required String bearerToken,
+    String? bearerToken,
     Duration pollInterval = const Duration(seconds: 2),
     Duration timeout = const Duration(minutes: 3),
   }) async {
+    final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
     final DateTime startedAt = DateTime.now();
 
     while (DateTime.now().difference(startedAt) < timeout) {
@@ -78,7 +82,7 @@ class QuestionAnswerSubmissionService {
       final http.Response response = await _client.get(
         resultUri,
         headers: <String, String>{
-          'Authorization': 'Bearer $bearerToken',
+          'Authorization': 'Bearer $resolvedBearerToken',
           'Accept': 'application/json',
         },
       );
@@ -90,6 +94,8 @@ class QuestionAnswerSubmissionService {
       }
 
       final dynamic decoded = jsonDecode(response.body);
+
+      print('Polled result for job $jobId: $decoded');
       if (decoded is! Map) {
         throw const FormatException('Invalid result response format.');
       }
@@ -97,15 +103,14 @@ class QuestionAnswerSubmissionService {
       final Map<String, dynamic> resultPayload = Map<String, dynamic>.from(
         decoded,
       );
+
+
       final String status = (resultPayload['status'] as String? ?? '')
           .trim()
           .toLowerCase();
 
       if (status == 'done') {
-        final Map<String, dynamic> analysisJson = _extractAnalysisJson(
-          resultPayload,
-        );
-        return AnalysisResult.fromJson(analysisJson);
+       return ;
       }
 
       if (status == 'failed' || status == 'error') {
@@ -122,10 +127,10 @@ class QuestionAnswerSubmissionService {
     throw TimeoutException('Timed out while waiting for analysis result.');
   }
 
-  Future<AnalysisResult> submitAndAwaitResult({
+  Future<int> submitAndAwaitResult({
     required String questionId,
     required int durationSeconds,
-    required String bearerToken,
+    String? bearerToken,
     required String voiceFilePath,
   }) async {
     final int jobId = await submitAnswer(
@@ -135,7 +140,19 @@ class QuestionAnswerSubmissionService {
       voiceFilePath: voiceFilePath,
     );
 
-    return pollResultUntilDone(jobId: jobId, bearerToken: bearerToken);
+
+    await pollResultUntilDone(jobId: jobId, bearerToken: bearerToken);
+
+    return jobId;
+  }
+
+  Future<String> _resolveBearerToken(String? bearerToken) async {
+    final String token =
+        (bearerToken ?? await AuthTokenStorage.getToken() ?? '').trim();
+    if (token.isEmpty) {
+      throw StateError('Missing authentication token. Please login/signin first.');
+    }
+    return token;
   }
 
   Map<String, dynamic> _extractAnalysisJson(Map<String, dynamic> payload) {

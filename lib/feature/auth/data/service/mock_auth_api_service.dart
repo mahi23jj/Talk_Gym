@@ -7,9 +7,9 @@ import 'package:talk_gym/feature/auth/data/model/auth_response.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_user.dart';
 
 class MockAuthApiService {
-  static const String _loginEndpoint = 'http://127.0.0.1:8000/api/v1/auth/login';
-  static const String _signInEndpoint = 'http://127.0.0.1:8000/api/v1/auth/signin';
-  static const String _googleEndpoint = 'http://127.0.0.1:8000/api/v1/auth/google';
+  static const String _loginEndpoint = 'https://f2da-102-212-68-34.ngrok-free.app/api/v1/auth/login';
+  static const String _signInEndpoint = 'https://f2da-102-212-68-34.ngrok-free.app/api/v1/auth/signin';
+  static const String _googleEndpoint = 'https://f2da-102-212-68-34.ngrok-free.app/api/v1/auth/google';
 
   // ignore: non_constant_identifier_names
   final String google_client_id = '949578675976-tdju2r1gntljnt70q3qld0to9o4akhcf.apps.googleusercontent.com';
@@ -26,7 +26,7 @@ class MockAuthApiService {
       Uri.parse(_loginEndpoint),
       headers: <String, String>{'Content-Type': 'application/json'},
       body: jsonEncode(<String, String>{
-        'username': usernameOrEmail,
+        'email': usernameOrEmail,
         'password': password,
       }),
     );

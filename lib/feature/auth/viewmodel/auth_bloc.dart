@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_exception.dart';
@@ -181,11 +183,56 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       return;
     }
 
+    if (!_isTokenUsable(token)) {
+      await _repository.clearToken();
+      emit(const Unauthenticated());
+      return;
+    }
+
     emit(
       Authenticated(
         token: token,
         user: const AuthUser(id: 'stored', username: 'authenticated_user', email: ''),
       ),
     );
+  }
+
+  bool _isTokenUsable(String token) {
+    final List<String> parts = token.split('.');
+    if (parts.length != 3) {
+      return false;
+    }
+
+    try {
+      final String normalized = base64Url.normalize(parts[1]);
+      final String payloadJson = utf8.decode(base64Url.decode(normalized));
+      final dynamic decoded = jsonDecode(payloadJson);
+      if (decoded is! Map<String, dynamic>) {
+        return false;
+      }
+
+      final dynamic expRaw = decoded['exp'];
+      int? expSeconds;
+      if (expRaw is int) {
+        expSeconds = expRaw;
+      } else if (expRaw is num) {
+        expSeconds = expRaw.toInt();
+      } else if (expRaw is String) {
+        expSeconds = int.tryParse(expRaw);
+      }
+
+      if (expSeconds == null) {
+        return false;
+      }
+
+      final DateTime expiresAt = DateTime.fromMillisecondsSinceEpoch(
+        expSeconds * 1000,
+        isUtc: true,
+      );
+
+      return expiresAt.isAfter(DateTime.now().toUtc());
+    } catch (_) {
+      return false;
+    }
   }
 }

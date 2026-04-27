@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/star_training/data/model/star_training_models.dart';
 import 'package:talk_gym/feature/star_training/data/repository/star_training_repository.dart';
@@ -110,7 +111,7 @@ class StarTrainingBloc extends Cubit<StarTrainingState> {
 
   final StarTrainingRepository _repository;
 
-  Future<void> load(QuestionItem question) async {
+  Future<void> load(QuestionItem question, StarMetrics metrics) async {
     emit(
       state.copyWith(
         status: StarTrainingStatus.loading,
@@ -119,7 +120,7 @@ class StarTrainingBloc extends Cubit<StarTrainingState> {
     );
 
     try {
-      final StarTrainingSession session = await _repository.fetchSession(question);
+      final StarTrainingSession session = await _repository.fetchSession(question , metrics);
       emit(
         state.copyWith(
           status: StarTrainingStatus.ready,

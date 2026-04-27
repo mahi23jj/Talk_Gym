@@ -34,6 +34,39 @@ class ContentMetrics {
 }
 
 @immutable
+class StarMetrics {
+  const StarMetrics({
+    required this.situation,
+    required this.task,
+    required this.action,
+    required this.result,
+  });
+
+  final String situation;
+  final String task;
+  final String action;
+  final String result;
+
+  factory StarMetrics.fromJson(Map<String, dynamic> json) {
+    return StarMetrics(
+      situation: json['s'],
+      task: json['t'],
+      action: json['a'],
+      result: json['r'],
+    );
+  }
+
+  // Map<String, dynamic> toJson() {
+  //   return <String, dynamic>{
+  //     'relevance': relevance,
+  //     'clarity': clarity,
+  //     'structure_star': structureStar,
+  //     'specificity': specificity,
+  //   };
+  // }
+}
+
+@immutable
 class BehavioralMetrics {
   const BehavioralMetrics({
     required this.ownership,
@@ -119,6 +152,7 @@ class AnalysisResult {
     required this.sentenceFeedback,
     required this.primaryTrainingMode,
     required this.shortFeedback,
+    required this.starExample,
   });
 
   final int overallScore;
@@ -130,8 +164,9 @@ class AnalysisResult {
   final List<SentenceFeedback> sentenceFeedback;
   final String primaryTrainingMode;
   final String shortFeedback;
+  final StarMetrics starExample;
 
-  factory AnalysisResult.fromJson(Map<String, dynamic> json) {
+  /* factory AnalysisResult.fromJson(Map<String, dynamic> json) {
     final Map<int, String> transcriptSentences = <int, String>{};
     final dynamic rawTranscriptSentences = json['transcript_sentences'];
     if (rawTranscriptSentences is Map) {
@@ -181,7 +216,7 @@ class AnalysisResult {
       shortFeedback: _asString(json['short_feedback']),
     );
   }
-
+ */
   List<int> get orderedSentenceIndices {
     final List<int> indices = transcriptSentences.keys.toList()..sort();
     return indices;
@@ -195,6 +230,75 @@ class AnalysisResult {
         )
         .toList(growable: false);
   }
+
+
+factory AnalysisResult.fromJson(Map<String, dynamic> jsons) {
+  final Map<String, dynamic> analysis =
+      Map<String, dynamic>.from(jsons['analysis'] ?? {});
+
+  final Map<String, dynamic> raw =
+      Map<String, dynamic>.from(analysis['raw_analysis_json'] ?? {});
+
+
+  final Map<String, dynamic> start_example =
+      Map<String, dynamic>.from(analysis['star_example'] ?? {});
+
+  // FIX 1: transcript sentences (LIST not MAP)
+  final Map<int, String> transcriptSentences = {};
+
+  final dynamic rawTranscriptSentences = raw['transcript_sentences'];
+  if (rawTranscriptSentences is List) {
+    for (final item in rawTranscriptSentences) {
+      if (item is Map) {
+        final idx = _asInt(item['idx']);
+        final sentence = item['sentence']?.toString() ?? '';
+        transcriptSentences[idx] = sentence;
+      }
+    }
+  }
+
+  // FIX 2: sentence feedback safe parse
+  final List<SentenceFeedback> sentenceFeedback = [];
+  final dynamic rawFeedback = raw['sentence_feedback'];
+
+  if (rawFeedback is List) {
+    for (final item in rawFeedback) {
+      if (item is Map) {
+        sentenceFeedback.add(
+          SentenceFeedback.fromJson(Map<String, dynamic>.from(item)),
+        );
+      }
+    }
+  }
+
+  // FIX 3: flags safe
+  final List<String> flags = [];
+  final dynamic rawFlags = raw['flags'];
+  if (rawFlags is List) {
+    for (final f in rawFlags) {
+      flags.add(f.toString());
+    }
+  }
+
+  return AnalysisResult(
+    overallScore: _asInt(analysis['score'] ?? raw['overall_score']),
+    transcript: _asString(raw['transcript']),
+    transcriptSentences: transcriptSentences,
+    contentMetrics: ContentMetrics.fromJson(
+      Map<String, dynamic>.from(raw['content'] ?? {}),
+    ),
+    behavioralMetrics: BehavioralMetrics.fromJson(
+      Map<String, dynamic>.from(raw['behavioral'] ?? {}),
+    ),
+    flags: flags,
+    sentenceFeedback: sentenceFeedback,
+    primaryTrainingMode: _asString(raw['primary_training_mode']),
+    shortFeedback: _asString(raw['short_feedback']),
+    starExample: StarMetrics.fromJson(
+      Map<String, dynamic>.from(start_example),
+    ),
+  );
+}
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{

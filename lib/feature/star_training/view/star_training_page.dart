@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/star_training/data/model/star_training_models.dart';
 import 'package:talk_gym/feature/star_training/data/repository/mock_star_training_repository.dart';
@@ -12,16 +13,19 @@ import 'package:talk_gym/feature/star_training/view/welcome_page.dart';
 import 'package:talk_gym/feature/star_training/viewmodel/star_training_bloc.dart';
 
 class StarTrainingPage extends StatelessWidget {
-  const StarTrainingPage({required this.question, super.key});
+  const StarTrainingPage({required this.question,required this.starmetrics ,super.key});
 
   final QuestionItem question;
+  final StarMetrics starmetrics;
+
+
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<StarTrainingBloc>(
       create: (_) =>
           StarTrainingBloc(repository: MockStarTrainingRepository())
-            ..load(question),
+            ..load(question, starmetrics),
       child: const _StarTrainingViewHost(),
     );
   }
@@ -59,7 +63,14 @@ class _StarTrainingViewHost extends StatelessWidget {
                         tags: <String>['Conflict', 'Leadership'],
                         dayUnlock: 1,
                       );
-                  context.read<StarTrainingBloc>().load(target);
+
+                      final StarMetrics metrics = const StarMetrics(
+                        situation: 'N/A',
+                        task: 'N/A',
+                        action: 'N/A',
+                        result: 'N/A',
+                      );
+                  context.read<StarTrainingBloc>().load(target , metrics);
                 },
               );
             }

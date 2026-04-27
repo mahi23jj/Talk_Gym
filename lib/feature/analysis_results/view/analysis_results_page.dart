@@ -5,22 +5,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
-import 'package:talk_gym/feature/analysis_results/data/repository/analysis_results_repository.dart';
-import 'package:talk_gym/feature/analysis_results/data/repository/mock_analysis_results_repository.dart';
+import 'package:talk_gym/feature/analysis_results/data/repository/http_analysis_results_repository.dart';
 import 'package:talk_gym/feature/analysis_results/viewmodel/analysis_results_bloc.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/star_training/view/star_training_page.dart';
 
 class AnalysisResultsPage extends StatelessWidget {
-  const AnalysisResultsPage({this.repository, super.key});
+  const AnalysisResultsPage({required this.attemptId, super.key});
 
-  final AnalysisResultsRepository? repository;
+  final String attemptId;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AnalysisResultsBloc>(
       create: (_) => AnalysisResultsBloc(
-        repository: repository ?? MockAnalysisResultsRepository(),
+        repository: HttpAnalysisResultsRepository(attemptId: attemptId),
       )..add(const AnalysisResultsStarted()),
       child: const _AnalysisResultsView(),
     );
@@ -411,6 +410,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                           MaterialPageRoute<void>(
                                             builder: (_) => StarTrainingPage(
                                               question: question,
+                                              starmetrics: analysis.starExample,
                                             ),
                                           ),
                                         );

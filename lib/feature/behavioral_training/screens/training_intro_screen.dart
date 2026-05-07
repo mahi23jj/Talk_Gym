@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/behavioral_training/screens/training_editor_screen.dart';
 
 class BehavioralTrainingIntroScreen extends StatelessWidget {
-  const BehavioralTrainingIntroScreen({this.finalAttemptId, super.key});
+  const BehavioralTrainingIntroScreen({
+    required this.analysisResult,
+    this.finalAttemptId,
+    super.key,
+  });
+
+  final AnalysisResult analysisResult;
 
   final String? finalAttemptId;
 
@@ -49,6 +56,8 @@ class BehavioralTrainingIntroScreen extends StatelessWidget {
               const SizedBox(height: 22),
               const _ValueCards(),
               const SizedBox(height: 20),
+              _TrainingSummaryCard(analysisResult: analysisResult),
+              const SizedBox(height: 16),
               const _HowItWorks(),
               const SizedBox(height: 16),
               Container(
@@ -73,8 +82,10 @@ class BehavioralTrainingIntroScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) =>
-                            TrainingEditorScreen(finalAttemptId: finalAttemptId),
+                        builder: (_) => TrainingEditorScreen(
+                          analysisResult: analysisResult,
+                          finalAttemptId: finalAttemptId,
+                        ),
                       ),
                     );
                   },
@@ -104,6 +115,73 @@ class BehavioralTrainingIntroScreen extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TrainingSummaryCard extends StatelessWidget {
+  const _TrainingSummaryCard({required this.analysisResult});
+
+  final AnalysisResult analysisResult;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<String> prompts = analysisResult.behavioralQuestions
+        .map((BehavioralQuestions question) => question.question)
+        .where((String item) => item.trim().isNotEmpty)
+        .toList();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const Text(
+            'What the AI wants you to improve',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            analysisResult.shortFeedback,
+            style: const TextStyle(color: AppColors.textSecondary, height: 1.4),
+          ),
+          if (prompts.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: prompts
+                  .take(3)
+                  .map(
+                    (String prompt) => Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Text(
+                        prompt,
+                        style: const TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+            ),
+          ],
+        ],
       ),
     );
   }

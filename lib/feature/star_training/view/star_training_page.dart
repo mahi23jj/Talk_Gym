@@ -13,7 +13,12 @@ import 'package:talk_gym/feature/star_training/view/welcome_page.dart';
 import 'package:talk_gym/feature/star_training/viewmodel/star_training_bloc.dart';
 
 class StarTrainingPage extends StatelessWidget {
-  const StarTrainingPage({required this.question,required this.starmetrics , required this.attemptid ,super.key });
+  const StarTrainingPage({
+    required this.question,
+    required this.starmetrics,
+    required this.attemptid,
+    super.key,
+  });
 
   final QuestionItem question;
   final StarMetrics starmetrics;
@@ -26,15 +31,18 @@ class StarTrainingPage extends StatelessWidget {
       create: (_) =>
           StarTrainingBloc(repository: MockStarTrainingRepository())
             ..load(question, starmetrics),
-      child:  _StarTrainingViewHost(question: question, attemptid: attemptid,),
+      child: _StarTrainingViewHost(
+        question: question,
+        attemptid: attemptid,
+      ),
     );
   }
 }
 
 class _StarTrainingViewHost extends StatelessWidget {
-  const _StarTrainingViewHost({required this.question, required this.attemptid });
+  const _StarTrainingViewHost({required this.question, required this.attemptid});
 
-    final QuestionItem question;
+  final QuestionItem question;
 
   final String attemptid;
 
@@ -68,13 +76,13 @@ class _StarTrainingViewHost extends StatelessWidget {
                         dayUnlock: 1,
                       );
 
-                      final StarMetrics metrics = const StarMetrics(
-                        situation: 'N/A',
-                        task: 'N/A',
-                        action: 'N/A',
-                        result: 'N/A',
-                      );
-                  context.read<StarTrainingBloc>().load(target , metrics);
+                  final StarMetrics metrics = const StarMetrics(
+                    situation: 'N/A',
+                    task: 'N/A',
+                    action: 'N/A',
+                    result: 'N/A',
+                  );
+                  context.read<StarTrainingBloc>().load(target, metrics);
                 },
               );
             }

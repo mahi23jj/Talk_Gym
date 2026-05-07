@@ -1,68 +1,39 @@
 import 'package:flutter/foundation.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 
 @immutable
 sealed class TrainingEvent {
   const TrainingEvent();
 }
 
-class LoadQuestionsEvent extends TrainingEvent {
-  const LoadQuestionsEvent();
+class LoadBehavioralTrainingEvent extends TrainingEvent {
+  const LoadBehavioralTrainingEvent({
+    required this.analysisResult,
+    required this.attemptId,
+  });
+
+  final AnalysisResult analysisResult;
+  final String attemptId;
 }
 
-class SelectQuestionEvent extends TrainingEvent {
-  const SelectQuestionEvent(this.questionId);
+class UpdateTranscriptSentenceEvent extends TrainingEvent {
+  const UpdateTranscriptSentenceEvent({
+    required this.sentenceIndex,
+    required this.text,
+  });
 
-  final String questionId;
+  final int sentenceIndex;
+  final String text;
 }
 
-class LoadOriginalContentEvent extends TrainingEvent {
-  const LoadOriginalContentEvent();
-}
-
-class UpdateAnswerEvent extends TrainingEvent {
-  const UpdateAnswerEvent(this.newText);
-
-  final String newText;
-}
-
-class HighlightSentencesEvent extends TrainingEvent {
-  const HighlightSentencesEvent();
-}
-
-class RequestEvaluationEvent extends TrainingEvent {
-  const RequestEvaluationEvent();
-}
-
-class RequestSecondEvaluationEvent extends TrainingEvent {
-  const RequestSecondEvaluationEvent();
-}
-
-class ShowImprovementPopupEvent extends TrainingEvent {
-  const ShowImprovementPopupEvent(this.sentence, this.feedback);
-
-  final String sentence;
-  final String feedback;
-}
-
-class ApplySuggestionEvent extends TrainingEvent {
-  const ApplySuggestionEvent(this.oldSentence, this.newSentence);
-
-  final String oldSentence;
-  final String newSentence;
-}
-
-class ApplyImprovedVersionEvent extends TrainingEvent {
-  const ApplyImprovedVersionEvent();
-}
-
-class DismissImprovementPopupEvent extends TrainingEvent {
-  const DismissImprovementPopupEvent();
-}
-
-class ClearSystemMessageEvent extends TrainingEvent {
-  const ClearSystemMessageEvent();
+class SubmitEvaluationEvent extends TrainingEvent {
+  const SubmitEvaluationEvent();
 }
 
 class StartFinalInterviewEvent extends TrainingEvent {
   const StartFinalInterviewEvent();
+}
+
+class ClearSystemMessageEvent extends TrainingEvent {
+  const ClearSystemMessageEvent();
 }

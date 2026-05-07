@@ -1,96 +1,134 @@
 import 'package:flutter/foundation.dart';
-import 'package:talk_gym/feature/behavioral_training/models/behavioral_question.dart';
-import 'package:talk_gym/feature/behavioral_training/models/evaluation_result.dart';
-import 'package:talk_gym/feature/behavioral_training/models/highlight_info.dart';
+import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
+import 'package:talk_gym/feature/behavioral_training/data/model/behavioral_training_result.dart';
 
-enum FormzStatus {
-  pure,
-  valid,
-  invalid,
-  submissionInProgress,
-  submissionSuccess,
-  submissionFailure,
+enum BehavioralTrainingStatus {
+  initial,
+  loading,
+  ready,
+  submitting,
+  polling,
+  failure,
 }
 
 @immutable
 class TrainingState {
   const TrainingState({
-    this.questions = const <BehavioralQuestion>[],
-    this.selectedQuestion,
-    this.originalContent = '',
-    this.currentAnswer = '',
-    this.highlightedSentences = const <String, HighlightInfo>{},
+    this.analysisResult,
+    this.attemptId = '',
+    this.editedSentences = const <int, String>{},
+    this.attemptsUsed = 0,
+    this.maxAttempts = 2,
+    this.submissionResult,
     this.evaluationResult,
-    this.aiCallsRemaining = 2,
-    this.isAnalyzing = false,
-    this.isEvaluating = false,
-    this.status = FormzStatus.pure,
-    this.popupHighlight,
-    this.popupRequestId = 0,
+    this.status = BehavioralTrainingStatus.initial,
     this.finalInterviewRequestId = 0,
     this.systemMessage,
+    this.errorMessage,
   });
 
-  final List<BehavioralQuestion> questions;
-  final BehavioralQuestion? selectedQuestion;
-  final String originalContent;
-  final String currentAnswer;
-  final Map<String, HighlightInfo> highlightedSentences;
-  final EvaluationResult? evaluationResult;
-  final int aiCallsRemaining;
-  final bool isAnalyzing;
-  final bool isEvaluating;
-  final FormzStatus status;
-  final HighlightInfo? popupHighlight;
-  final int popupRequestId;
+  final AnalysisResult? analysisResult;
+  final String attemptId;
+  final Map<int, String> editedSentences;
+  final int attemptsUsed;
+  final int maxAttempts;
+  final BehavioralTrainingSubmissionResult? submissionResult;
+  final BehavioralTrainingAttemptResult? evaluationResult;
+  final BehavioralTrainingStatus status;
   final int finalInterviewRequestId;
   final String? systemMessage;
+  final String? errorMessage;
 
-  bool get canEvaluate => aiCallsRemaining > 0 && !isEvaluating;
+  bool get isLoading => status == BehavioralTrainingStatus.loading;
+  bool get isSubmitting => status == BehavioralTrainingStatus.submitting;
+  bool get isPolling => status == BehavioralTrainingStatus.polling;
+  bool get hasLoadedAnalysis => analysisResult != null;
   bool get hasEvaluation => evaluationResult != null;
-  bool get canTakeFinalInterview => evaluationResult != null;
+  bool get hasPassed => evaluationResult?.analysis?.passed == true;
+  bool get attemptLimitReached => attemptsUsed >= maxAttempts && !hasPassed;
+  bool get canTakeFinalInterview => hasPassed || attemptLimitReached;
+  bool get canSubmitEvaluation =>
+      hasLoadedAnalysis &&
+      !isLoading &&
+      !isSubmitting &&
+      !isPolling &&
+      !hasPassed &&
+      attemptsUsed < maxAttempts &&
+      currentTranscript.trim().isNotEmpty;
+
+  List<int> get orderedSentenceIndices {
+    final AnalysisResult? result = analysisResult;
+    if (result == null) {
+      return const <int>[];
+    }
+    return result.orderedSentenceIndices;
+  }
+
+  String sentenceTextFor(int index) {
+    return editedSentences[index] ?? analysisResult?.transcriptSentences[index] ?? '';
+  }
+
+  SentenceFeedback? feedbackFor(int index) {
+    final AnalysisResult? result = analysisResult;
+    if (result == null) {
+      return null;
+    }
+
+    for (final SentenceFeedback feedback in result.sentenceFeedback) {
+      if (feedback.sentenceIndex == index) {
+        return feedback;
+      }
+    }
+    return null;
+  }
+
+  String get currentTranscript {
+    if (analysisResult == null) {
+      return '';
+    }
+
+    return orderedSentenceIndices.map(sentenceTextFor).join(' ');
+  }
+
+  List<BehavioralQuestions> get coachingQuestions =>
+      analysisResult?.behavioralQuestions ?? const <BehavioralQuestions>[];
 
   TrainingState copyWith({
-    List<BehavioralQuestion>? questions,
-    BehavioralQuestion? selectedQuestion,
-    bool clearSelectedQuestion = false,
-    String? originalContent,
-    String? currentAnswer,
-    Map<String, HighlightInfo>? highlightedSentences,
-    EvaluationResult? evaluationResult,
-    bool clearEvaluation = false,
-    int? aiCallsRemaining,
-    bool? isAnalyzing,
-    bool? isEvaluating,
-    FormzStatus? status,
-    HighlightInfo? popupHighlight,
-    bool clearPopupHighlight = false,
-    int? popupRequestId,
+    AnalysisResult? analysisResult,
+    bool clearAnalysisResult = false,
+    String? attemptId,
+    Map<int, String>? editedSentences,
+    int? attemptsUsed,
+    int? maxAttempts,
+    BehavioralTrainingSubmissionResult? submissionResult,
+    bool clearSubmissionResult = false,
+    BehavioralTrainingAttemptResult? evaluationResult,
+    bool clearEvaluationResult = false,
+    BehavioralTrainingStatus? status,
     int? finalInterviewRequestId,
     String? systemMessage,
     bool clearSystemMessage = false,
+    String? errorMessage,
+    bool clearErrorMessage = false,
   }) {
     return TrainingState(
-      questions: questions ?? this.questions,
-      selectedQuestion: clearSelectedQuestion
+      analysisResult: clearAnalysisResult
           ? null
-          : (selectedQuestion ?? this.selectedQuestion),
-      originalContent: originalContent ?? this.originalContent,
-      currentAnswer: currentAnswer ?? this.currentAnswer,
-      highlightedSentences: highlightedSentences ?? this.highlightedSentences,
-      evaluationResult: clearEvaluation
+          : (analysisResult ?? this.analysisResult),
+      attemptId: attemptId ?? this.attemptId,
+      editedSentences: editedSentences ?? this.editedSentences,
+      attemptsUsed: attemptsUsed ?? this.attemptsUsed,
+      maxAttempts: maxAttempts ?? this.maxAttempts,
+      submissionResult: clearSubmissionResult
+          ? null
+          : (submissionResult ?? this.submissionResult),
+      evaluationResult: clearEvaluationResult
           ? null
           : (evaluationResult ?? this.evaluationResult),
-      aiCallsRemaining: aiCallsRemaining ?? this.aiCallsRemaining,
-      isAnalyzing: isAnalyzing ?? this.isAnalyzing,
-      isEvaluating: isEvaluating ?? this.isEvaluating,
       status: status ?? this.status,
-      popupHighlight: clearPopupHighlight
-          ? null
-          : (popupHighlight ?? this.popupHighlight),
-      popupRequestId: popupRequestId ?? this.popupRequestId,
       finalInterviewRequestId: finalInterviewRequestId ?? this.finalInterviewRequestId,
       systemMessage: clearSystemMessage ? null : (systemMessage ?? this.systemMessage),
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
     );
   }
 }

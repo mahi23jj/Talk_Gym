@@ -96,6 +96,29 @@ class BehavioralMetrics {
 }
 
 @immutable
+class BehavioralQuestions {
+  const BehavioralQuestions({
+    required this.question,
+    required this.target,
+    required this.example,
+  });
+
+  final String question;
+  final String target;
+  final String example;
+
+  factory BehavioralQuestions.fromJson(Map<String, dynamic> json) {
+    return BehavioralQuestions(
+      question: json['question'],
+      target: json['target'],
+      example: json['example'],
+    );
+  }
+
+ 
+}
+
+@immutable
 class SentenceFeedback {
   const SentenceFeedback({
     required this.idx,
@@ -153,6 +176,7 @@ class AnalysisResult {
     required this.primaryTrainingMode,
     required this.shortFeedback,
     required this.starExample,
+    required this.behavioralQuestions,
   });
 
   final int overallScore;
@@ -165,6 +189,11 @@ class AnalysisResult {
   final String primaryTrainingMode;
   final String shortFeedback;
   final StarMetrics starExample;
+  final List<BehavioralQuestions> behavioralQuestions;
+
+  bool get isBehavioralTraining => primaryTrainingMode == 'behavioral_training';
+
+  List<BehavioralQuestions> get behavioral_questions => behavioralQuestions;
 
   /* factory AnalysisResult.fromJson(Map<String, dynamic> json) {
     final Map<int, String> transcriptSentences = <int, String>{};
@@ -232,92 +261,103 @@ class AnalysisResult {
   }
 
 
-factory AnalysisResult.fromJson(Map<String, dynamic> jsons) {
-  final Map<String, dynamic> analysis =
-      Map<String, dynamic>.from(jsons['analysis'] ?? {});
+  factory AnalysisResult.fromJson(Map<String, dynamic> jsons) {
+    final Map<String, dynamic> analysis =
+        Map<String, dynamic>.from(jsons['analysis'] ?? jsons);
 
-  final Map<String, dynamic> raw =
-      Map<String, dynamic>.from(analysis['raw_analysis_json'] ?? {});
+    final Map<String, dynamic> raw = Map<String, dynamic>.from(
+      analysis['raw_analysis_json'] ?? analysis['rawAnalysisJson'] ?? analysis,
+    );
 
+    final Map<String, dynamic> starExample = Map<String, dynamic>.from(
+      analysis['star_example'] ?? raw['star_example'] ?? <String, dynamic>{},
+    );
 
-  final Map<String, dynamic> start_example =
-      Map<String, dynamic>.from(analysis['star_example'] ?? {});
+    final Map<int, String> transcriptSentences = <int, String>{};
+    final dynamic rawTranscriptSentences =
+        raw['transcript_sentences'] ?? analysis['transcript_sentences'];
+    if (rawTranscriptSentences is List) {
+      for (final dynamic item in rawTranscriptSentences) {
+        if (item is Map) {
+          final Map<String, dynamic> sentenceJson =
+              Map<String, dynamic>.from(item);
+          final int index = _asInt(
+            sentenceJson['idx'] ?? sentenceJson['sentence_index'],
+          );
+          transcriptSentences[index] = _asString(sentenceJson['sentence']);
+        }
+      }
+    } else if (rawTranscriptSentences is Map) {
+      rawTranscriptSentences.forEach((dynamic key, dynamic value) {
+        final int? index = int.tryParse('$key');
+        if (index != null) {
+          transcriptSentences[index] = _asString(value);
+        }
+      });
+    }
 
-  // FIX 1: transcript sentences (LIST not MAP)
-  final Map<int, String> transcriptSentences = {};
-
-  final dynamic rawTranscriptSentences = raw['transcript_sentences'];
-  if (rawTranscriptSentences is List) {
-    for (final item in rawTranscriptSentences) {
-      if (item is Map) {
-        final idx = _asInt(item['idx']);
-        final sentence = item['sentence']?.toString() ?? '';
-        transcriptSentences[idx] = sentence;
+    final List<SentenceFeedback> sentenceFeedback = <SentenceFeedback>[];
+    final dynamic rawFeedback = raw['sentence_feedback'] ?? analysis['sentence_feedback'];
+    if (rawFeedback is List) {
+      for (final dynamic item in rawFeedback) {
+        if (item is Map) {
+          sentenceFeedback.add(
+            SentenceFeedback.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
       }
     }
-  }
 
-  // FIX 2: sentence feedback safe parse
-  final List<SentenceFeedback> sentenceFeedback = [];
-  final dynamic rawFeedback = raw['sentence_feedback'];
-
-  if (rawFeedback is List) {
-    for (final item in rawFeedback) {
-      if (item is Map) {
-        sentenceFeedback.add(
-          SentenceFeedback.fromJson(Map<String, dynamic>.from(item)),
-        );
+    final List<BehavioralQuestions> behavioralQuestions = <BehavioralQuestions>[];
+    final dynamic rawQuestions =
+        raw['behavioral_questions'] ?? analysis['behavioral_questions'];
+    if (rawQuestions is List) {
+      for (final dynamic item in rawQuestions) {
+        if (item is Map) {
+          behavioralQuestions.add(
+            BehavioralQuestions.fromJson(Map<String, dynamic>.from(item)),
+          );
+        }
       }
     }
-  }
 
-  // FIX 3: flags safe
-  final List<String> flags = [];
-  final dynamic rawFlags = raw['flags'];
-  if (rawFlags is List) {
-    for (final f in rawFlags) {
-      flags.add(f.toString());
+    final List<String> flags = <String>[];
+    final dynamic rawFlags = raw['flags'] ?? analysis['flags'];
+    if (rawFlags is List) {
+      for (final dynamic flag in rawFlags) {
+        final String value = _asString(flag).trim();
+        if (value.isNotEmpty) {
+          flags.add(value);
+        }
+      }
     }
-  }
 
-  return AnalysisResult(
-    overallScore: _asInt(analysis['score'] ?? raw['overall_score']),
-    transcript: _asString(raw['transcript']),
-    transcriptSentences: transcriptSentences,
-    contentMetrics: ContentMetrics.fromJson(
-      Map<String, dynamic>.from(raw['content'] ?? {}),
-    ),
-    behavioralMetrics: BehavioralMetrics.fromJson(
-      Map<String, dynamic>.from(raw['behavioral'] ?? {}),
-    ),
-    flags: flags,
-    sentenceFeedback: sentenceFeedback,
-    primaryTrainingMode: _asString(raw['primary_training_mode']),
-    shortFeedback: _asString(raw['short_feedback']),
-    starExample: StarMetrics.fromJson(
-      Map<String, dynamic>.from(start_example),
-    ),
-  );
-}
-
-  Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'overall_score': overallScore,
-      'transcript': transcript,
-      'transcript_sentences': transcriptSentences.map(
-        (int key, String value) =>
-            MapEntry<String, dynamic>(key.toString(), value),
+    return AnalysisResult(
+      overallScore: _asInt(analysis['score'] ?? raw['overall_score']),
+      transcript: _asString(raw['transcript'] ?? analysis['transcript']),
+      transcriptSentences: transcriptSentences,
+      contentMetrics: ContentMetrics.fromJson(
+        Map<String, dynamic>.from(
+          raw['content'] ?? analysis['content'] ?? <String, dynamic>{},
+        ),
       ),
-      'content_metrics': contentMetrics.toJson(),
-      'behavioral_metrics': behavioralMetrics.toJson(),
-      'flags': flags,
-      'sentence_feedback': sentenceFeedback
-          .map((SentenceFeedback feedback) => feedback.toJson())
-          .toList(),
-      'primary_training_mode': primaryTrainingMode,
-      'short_feedback': shortFeedback,
-    };
+      behavioralMetrics: BehavioralMetrics.fromJson(
+        Map<String, dynamic>.from(
+          raw['behavioral'] ?? analysis['behavioral'] ?? <String, dynamic>{},
+        ),
+      ),
+      flags: flags,
+      sentenceFeedback: sentenceFeedback,
+      primaryTrainingMode: _asString(
+        raw['primary_training_mode'] ?? analysis['primary_training_mode'],
+      ),
+      shortFeedback: _asString(raw['short_feedback'] ?? analysis['short_feedback']),
+      starExample: StarMetrics.fromJson(starExample),
+      behavioralQuestions: behavioralQuestions,
+    );
   }
+
+
 }
 
 int _asInt(dynamic value) {

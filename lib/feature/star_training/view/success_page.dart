@@ -95,10 +95,9 @@ class _StarSuccessPageState extends State<StarSuccessPage>
               ),
               child: const Text('Back to Questions'),
             ),
-
-
-        ElevatedButton(
-             style: ElevatedButton.styleFrom(
+            const SizedBox(height: 10),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF222222),
                 foregroundColor: Colors.white,
               ),
@@ -111,13 +110,8 @@ class _StarSuccessPageState extends State<StarSuccessPage>
                   ),
                 ),
               ),
-               child: const Text('Take Final Interview'),
-               /*  backgroundColor: const Color(0xFF222222),
-                foregroundColor: Colors.white, */
-              ),
-             
-            
-           
+              child: const Text('Take Final Interview'),
+            ),
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => context.read<StarTrainingBloc>().backToEdit(),

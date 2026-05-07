@@ -11,6 +11,8 @@ import 'package:record/record.dart';
 import 'package:talk_gym/core/voice_recording.dart';
 import 'package:talk_gym/core/widget/recording.dart';
 import 'package:talk_gym/feature/analysis_results/view/analysis_results_page.dart';
+import 'package:talk_gym/feature/final_analysis/presentation/view/final_analysis_page.dart';
+import 'package:talk_gym/feature/question/data/model/interview_mode.dart';
 import 'package:talk_gym/feature/question/data/repository/question_answer_submission_service.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 
@@ -30,9 +32,16 @@ const Color _kWaveInactive = Color(0xFFD0D0D0);
 enum _RecordingState { idle, recording, paused, review }
 
 class QuestionDetailPage extends StatefulWidget {
-  const QuestionDetailPage({required this.item, super.key});
+  const QuestionDetailPage({
+    required this.item,
+    this.mode = InterviewMode.initial,
+    this.finalAttemptId,
+    super.key,
+  });
 
   final QuestionItem item;
+  final InterviewMode mode;
+  final String? finalAttemptId;
 
   @override
   State<QuestionDetailPage> createState() => _QuestionDetailPageState();
@@ -361,12 +370,76 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     HapticFeedback.lightImpact();
 
-    final int attemptId;
     try {
-      attemptId = await _submissionService.submitAndAwaitResult(
+      if (widget.mode == InterviewMode.finalInterview) {
+        final String attemptId = (widget.finalAttemptId ?? '').trim();
+        if (attemptId.isEmpty) {
+          throw StateError('Missing attempt id for final interview.');
+        }
+        final String sessionId = await _submissionService.submitFinalAnswer(
+          attemptId: attemptId,
+          durationSeconds: _recordingSeconds,
+          voiceFilePath: _recordedAudioPath!,
+        );
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _showSuccessCheck = true;
+          _isSubmitting = false;
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 280));
+        if (!mounted) {
+          return;
+        }
+        Navigator.of(context).push(
+          PageRouteBuilder<void>(
+            pageBuilder:
+                (
+                  BuildContext context,
+                  Animation<double> animation,
+                  Animation<double> secondaryAnimation,
+                ) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: FinalAnalysisPage(sessionId: sessionId),
+                  );
+                },
+          ),
+        );
+        return;
+      }
+
+      final int attemptId = await _submissionService.submitAndAwaitResult(
         questionId: widget.item.id.toString(),
         durationSeconds: _recordingSeconds,
         voiceFilePath: _recordedAudioPath!,
+      );
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _showSuccessCheck = true;
+        _isSubmitting = false;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 280));
+      if (!mounted) {
+        return;
+      }
+      Navigator.of(context).push(
+        PageRouteBuilder<void>(
+          pageBuilder:
+              (
+                BuildContext context,
+                Animation<double> animation,
+                Animation<double> secondaryAnimation,
+              ) {
+                return FadeTransition(
+                  opacity: animation,
+                  child: AnalysisResultsPage(attemptId: attemptId.toString()),
+                );
+              },
+        ),
       );
     } catch (error) {
       if (!mounted) {
@@ -384,32 +457,6 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       return;
     }
 
-    setState(() {
-      _showSuccessCheck = true;
-      _isSubmitting = false;
-    });
-
-    await Future<void>.delayed(const Duration(milliseconds: 280));
-
-    if (!mounted) {
-      return;
-    }
-
-    Navigator.of(context).push(
-      PageRouteBuilder<void>(
-        pageBuilder:
-            (
-              BuildContext context,
-              Animation<double> animation,
-              Animation<double> secondaryAnimation,
-            ) {
-              return FadeTransition(
-                opacity: animation,
-                child: AnalysisResultsPage(attemptId: attemptId.toString()),
-              );
-            },
-      ),
-    );
   }
 
   String get _formattedTimer {
@@ -527,9 +574,11 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      'Submit Answer',
-                      style: TextStyle(
+                    child: Text(
+                      widget.mode == InterviewMode.finalInterview
+                          ? 'Submit Final Interview'
+                          : 'Submit Answer',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
@@ -583,11 +632,13 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
               onPressed: () => Navigator.of(context).pop(),
             ),
           ),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Answer Question',
+              widget.mode == InterviewMode.finalInterview
+                  ? 'Final Interview'
+                  : 'Answer Question',
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
                 color: _kPrimaryText,

@@ -1,0 +1,1 @@
+enum InterviewMode { initial, finalInterview }

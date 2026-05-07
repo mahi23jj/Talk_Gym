@@ -21,13 +21,15 @@ class AnalysisResultsPage extends StatelessWidget {
       create: (_) => AnalysisResultsBloc(
         repository: HttpAnalysisResultsRepository(attemptId: attemptId),
       )..add(const AnalysisResultsStarted()),
-      child: const _AnalysisResultsView(),
+      child: _AnalysisResultsView(attemptId: attemptId),
     );
   }
 }
 
 class _AnalysisResultsView extends StatefulWidget {
-  const _AnalysisResultsView();
+    const _AnalysisResultsView({required this.attemptId});
+
+    final String attemptId;
 
   @override
   State<_AnalysisResultsView> createState() => _AnalysisResultsViewState();
@@ -411,6 +413,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                             builder: (_) => StarTrainingPage(
                                               question: question,
                                               starmetrics: analysis.starExample,
+                                              attemptid: widget.attemptId,
                                             ),
                                           ),
                                         );

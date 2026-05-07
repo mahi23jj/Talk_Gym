@@ -8,14 +8,18 @@ import 'package:talk_gym/feature/behavioral_training/bloc/training_bloc.dart';
 import 'package:talk_gym/feature/behavioral_training/bloc/training_event.dart';
 import 'package:talk_gym/feature/behavioral_training/bloc/training_state.dart';
 import 'package:talk_gym/feature/behavioral_training/models/highlight_info.dart';
-import 'package:talk_gym/feature/behavioral_training/screens/final_interview_simulation.dart';
 import 'package:talk_gym/feature/behavioral_training/widgets/ai_call_counter.dart';
 import 'package:talk_gym/feature/behavioral_training/widgets/evaluation_card.dart';
 import 'package:talk_gym/feature/behavioral_training/widgets/highlighted_text_editor.dart';
 import 'package:talk_gym/feature/behavioral_training/widgets/improvement_popup.dart';
+import 'package:talk_gym/feature/question/data/model/interview_mode.dart';
+import 'package:talk_gym/feature/question/data/model/question_item.dart';
+import 'package:talk_gym/feature/question/view/question_detail_page.dart';
 
 class TrainingEditorScreen extends StatelessWidget {
-  const TrainingEditorScreen({super.key});
+  const TrainingEditorScreen({this.finalAttemptId, super.key});
+
+  final String? finalAttemptId;
 
   @override
   Widget build(BuildContext context) {
@@ -24,13 +28,15 @@ class TrainingEditorScreen extends StatelessWidget {
         trainingApi: MockTrainingApi(),
         aiEvaluator: MockAiEvaluator(),
       )..add(const LoadQuestionsEvent()),
-      child: const _TrainingEditorView(),
+      child: _TrainingEditorView(finalAttemptId: finalAttemptId),
     );
   }
 }
 
 class _TrainingEditorView extends StatefulWidget {
-  const _TrainingEditorView();
+  const _TrainingEditorView({required this.finalAttemptId});
+
+  final String? finalAttemptId;
 
   @override
   State<_TrainingEditorView> createState() => _TrainingEditorViewState();
@@ -151,16 +157,36 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
 
             if (state.finalInterviewRequestId != _lastFinalInterviewRequestId) {
               _lastFinalInterviewRequestId = state.finalInterviewRequestId;
+              final String attemptId = (widget.finalAttemptId ?? '').trim();
+              if (attemptId.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Unable to start final interview. Missing attempt id from training start.',
+                    ),
+                  ),
+                );
+                return;
+              }
               final String questionText =
                   state.selectedQuestion?.text ?? 'Behavioral interview question';
               if (!context.mounted) {
                 return;
               }
+              final QuestionItem item = QuestionItem(
+                id: state.selectedQuestion?.id.hashCode ?? -999,
+                title: questionText,
+                description:
+                    'Deliver your final answer in interview conditions.',
+                tags: const <String>['Final Interview', 'Behavioral'],
+                dayUnlock: 1,
+              );
               Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => FinalInterviewSimulationScreen(
-                    questionText: questionText,
-                    preparedAnswer: state.currentAnswer,
+                  builder: (_) => QuestionDetailPage(
+                    item: item,
+                    mode: InterviewMode.finalInterview,
+                    finalAttemptId: attemptId,
                   ),
                 ),
               );

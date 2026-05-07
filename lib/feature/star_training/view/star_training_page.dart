@@ -13,11 +13,11 @@ import 'package:talk_gym/feature/star_training/view/welcome_page.dart';
 import 'package:talk_gym/feature/star_training/viewmodel/star_training_bloc.dart';
 
 class StarTrainingPage extends StatelessWidget {
-  const StarTrainingPage({required this.question,required this.starmetrics ,super.key});
+  const StarTrainingPage({required this.question,required this.starmetrics , required this.attemptid ,super.key });
 
   final QuestionItem question;
   final StarMetrics starmetrics;
-
+  final String attemptid;
 
 
   @override
@@ -26,13 +26,17 @@ class StarTrainingPage extends StatelessWidget {
       create: (_) =>
           StarTrainingBloc(repository: MockStarTrainingRepository())
             ..load(question, starmetrics),
-      child: const _StarTrainingViewHost(),
+      child:  _StarTrainingViewHost(question: question, attemptid: attemptid,),
     );
   }
 }
 
 class _StarTrainingViewHost extends StatelessWidget {
-  const _StarTrainingViewHost();
+  const _StarTrainingViewHost({required this.question, required this.attemptid });
+
+    final QuestionItem question;
+
+  final String attemptid;
 
   @override
   Widget build(BuildContext context) {
@@ -80,7 +84,10 @@ class _StarTrainingViewHost extends StatelessWidget {
               StarTrainingStage.countdown => const CountdownPage(),
               StarTrainingStage.flow => const StarFlowPage(),
               StarTrainingStage.review => const StarReviewPage(),
-              StarTrainingStage.success => const StarSuccessPage(),
+              StarTrainingStage.success => StarSuccessPage(
+                attemptid: attemptid,
+                question: state.session?.question ?? question,
+              ),
             };
 
             return AnimatedSwitcher(

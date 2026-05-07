@@ -3,7 +3,9 @@ import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/behavioral_training/screens/training_editor_screen.dart';
 
 class BehavioralTrainingIntroScreen extends StatelessWidget {
-  const BehavioralTrainingIntroScreen({super.key});
+  const BehavioralTrainingIntroScreen({this.finalAttemptId, super.key});
+
+  final String? finalAttemptId;
 
   @override
   Widget build(BuildContext context) {
@@ -71,7 +73,8 @@ class BehavioralTrainingIntroScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const TrainingEditorScreen(),
+                        builder: (_) =>
+                            TrainingEditorScreen(finalAttemptId: finalAttemptId),
                       ),
                     );
                   },

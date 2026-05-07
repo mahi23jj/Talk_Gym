@@ -4,7 +4,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/core/auth_token_storage.dart';
-import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
+import 'package:talk_gym/feature/final_analysis/data/model/final_interview_result.dart';
 
 class QuestionAnswerSubmissionService {
   QuestionAnswerSubmissionService({http.Client? client, Uri? baseUri})
@@ -63,6 +63,103 @@ class QuestionAnswerSubmissionService {
     }
 
     return jobId;
+  }
+
+  Future<String> submitFinalAnswer({
+    required String attemptId,
+    required int durationSeconds,
+    String? bearerToken,
+    required String voiceFilePath,
+  }) async {
+    final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
+    final Uri endpoint = _baseUri.replace(path: '/api/v1/submit/final/$attemptId');
+    final http.MultipartRequest request =
+        http.MultipartRequest('POST', endpoint)
+          ..headers['Authorization'] = 'Bearer $resolvedBearerToken'
+          ..headers['Accept'] = 'application/json'
+          ..fields['duration_sec'] = durationSeconds.toString();
+
+    if (!File(voiceFilePath).existsSync()) {
+      throw StateError('Audio file not found: $voiceFilePath');
+    }
+
+    request.files.add(await http.MultipartFile.fromPath('audio', voiceFilePath));
+    final http.StreamedResponse response = await _client.send(request);
+    final String body = await response.stream.bytesToString();
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(
+        'Failed to submit final interview. HTTP ${response.statusCode}: $body',
+      );
+    }
+
+    final dynamic decoded = jsonDecode(body);
+    if (decoded is! Map) {
+      throw const FormatException('Invalid final submit response format.');
+    }
+
+    final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
+    final String sessionId = (json['session_id'] as String? ?? '').trim();
+    if (sessionId.isEmpty) {
+      throw const FormatException('Final submit response missing session_id.');
+    }
+    return sessionId;
+  }
+
+  Future<FinalInterviewResult> fetchFinalResult({
+    required String sessionId,
+    String? bearerToken,
+  }) async {
+    final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
+    final Uri uri = _baseUri.replace(path: '/api/v1/attempt/result/final/$sessionId');
+
+    final http.Response response = await _client.get(
+      uri,
+      headers: <String, String>{
+        'Authorization': 'Bearer $resolvedBearerToken',
+        'Accept': 'application/json',
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(
+        'Failed to fetch final interview result. HTTP ${response.statusCode}: ${response.body}',
+      );
+    }
+
+    final dynamic decoded = jsonDecode(response.body);
+    if (decoded is! Map) {
+      throw const FormatException('Invalid final result response format.');
+    }
+
+    return FinalInterviewResult.fromJson(Map<String, dynamic>.from(decoded));
+  }
+
+  Future<FinalInterviewResult> pollFinalResultUntilCompleted({
+    required String sessionId,
+    String? bearerToken,
+    Duration pollInterval = const Duration(seconds: 2),
+    Duration timeout = const Duration(minutes: 3),
+  }) async {
+    final DateTime startedAt = DateTime.now();
+
+    while (DateTime.now().difference(startedAt) < timeout) {
+      final FinalInterviewResult result = await fetchFinalResult(
+        sessionId: sessionId,
+        bearerToken: bearerToken,
+      );
+      final String status = result.status.toLowerCase();
+
+      if (status == 'completed') {
+        return result;
+      }
+      if (status == 'failed' || status == 'error') {
+        throw StateError(result.message ?? 'Final interview processing failed.');
+      }
+
+      await Future<void>.delayed(pollInterval);
+    }
+    throw TimeoutException('Timed out while waiting for final interview analysis.');
   }
 
   Future<void> pollResultUntilDone({
@@ -153,17 +250,6 @@ class QuestionAnswerSubmissionService {
       throw StateError('Missing authentication token. Please login/signin first.');
     }
     return token;
-  }
-
-  Map<String, dynamic> _extractAnalysisJson(Map<String, dynamic> payload) {
-    for (final String key in <String>['result', 'analysis', 'data']) {
-      final dynamic value = payload[key];
-      if (value is Map) {
-        return Map<String, dynamic>.from(value);
-      }
-    }
-
-    return payload;
   }
 
   int? _asInt(dynamic value) {

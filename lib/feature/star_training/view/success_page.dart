@@ -2,10 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/feature/question/data/model/interview_mode.dart';
+import 'package:talk_gym/feature/question/data/model/question_item.dart';
+import 'package:talk_gym/feature/question/view/question_detail_page.dart';
 import 'package:talk_gym/feature/star_training/viewmodel/star_training_bloc.dart';
 
 class StarSuccessPage extends StatefulWidget {
-  const StarSuccessPage({super.key});
+  const StarSuccessPage({
+    required this.attemptid,
+    required this.question,
+    super.key,
+  });
+
+  final String attemptid;
+  final QuestionItem question;
 
   @override
   State<StarSuccessPage> createState() => _StarSuccessPageState();
@@ -85,6 +95,29 @@ class _StarSuccessPageState extends State<StarSuccessPage>
               ),
               child: const Text('Back to Questions'),
             ),
+
+
+        ElevatedButton(
+             style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF222222),
+                foregroundColor: Colors.white,
+              ),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => QuestionDetailPage(
+                    item: widget.question,
+                    mode: InterviewMode.finalInterview,
+                    finalAttemptId: widget.attemptid,
+                  ),
+                ),
+              ),
+               child: const Text('Take Final Interview'),
+               /*  backgroundColor: const Color(0xFF222222),
+                foregroundColor: Colors.white, */
+              ),
+             
+            
+           
             const SizedBox(height: 8),
             TextButton(
               onPressed: () => context.read<StarTrainingBloc>().backToEdit(),

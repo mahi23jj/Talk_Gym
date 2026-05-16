@@ -10,7 +10,7 @@ class HttpBehavioralTrainingRepository implements BehavioralTrainingRepository {
 
   @override
   Future<BehavioralTrainingSubmissionResult> submitTrainingAttempt({
-    required String attemptId,
+    required int attemptId,
     required String transcript,
     required String trainingType,
   }) {

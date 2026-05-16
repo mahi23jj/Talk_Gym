@@ -22,7 +22,7 @@ class TrainingEditorScreen extends StatelessWidget {
   });
 
   final AnalysisResult analysisResult;
-  final String? finalAttemptId;
+  final int? finalAttemptId;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class TrainingEditorScreen extends StatelessWidget {
       )..add(
           LoadBehavioralTrainingEvent(
             analysisResult: analysisResult,
-            attemptId: (finalAttemptId ?? '').trim(),
+            attemptId: finalAttemptId ?? 0,
           ),
         ),
       child: _TrainingEditorView(finalAttemptId: finalAttemptId),
@@ -43,7 +43,7 @@ class TrainingEditorScreen extends StatelessWidget {
 class _TrainingEditorView extends StatefulWidget {
   const _TrainingEditorView({required this.finalAttemptId});
 
-  final String? finalAttemptId;
+  final int? finalAttemptId;
 
   @override
   State<_TrainingEditorView> createState() => _TrainingEditorViewState();
@@ -52,6 +52,7 @@ class _TrainingEditorView extends StatefulWidget {
 class _TrainingEditorViewState extends State<_TrainingEditorView> {
   final Map<int, TextEditingController> _controllers = <int, TextEditingController>{};
   int _lastFinalInterviewRequestId = 0;
+  final Map<int, GlobalKey> _feedbackKeys = {};
 
   @override
   void dispose() {
@@ -82,18 +83,78 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
 
     for (final int index in activeIndices) {
       _controllerFor(index, state.sentenceTextFor(index));
+      _feedbackKeys.putIfAbsent(index, () => GlobalKey());
     }
 
     final List<int> removed = _controllers.keys.where((int key) => !activeIndices.contains(key)).toList(growable: false);
     for (final int index in removed) {
       _controllers[index]?.dispose();
       _controllers.remove(index);
+      _feedbackKeys.remove(index);
     }
   }
 
+  void _showErrorPopup(BuildContext context, SentenceFeedback feedback) {
+    showDialog(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Row(
+            children: [
+              const Icon(Icons.error_outline, color: Color(0xFFE53935)),
+              const SizedBox(width: 8),
+              const Text('Error & Improvement'),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8F8),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFEF9A9A)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Issue Detected:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(feedback.issue, style: const TextStyle(fontSize: 13)),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'Recommendation:',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF2E7D32)),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      feedback.improvedExample,
+                      style: const TextStyle(fontSize: 13, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Got it'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Future<void> _openFinalInterview(TrainingState state) async {
-    final String attemptId = ((widget.finalAttemptId ?? state.attemptId)).trim();
-    if (attemptId.isEmpty) {
+    final int attemptId = widget.finalAttemptId ?? state.attemptId;
+    if (attemptId <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Missing attempt id for final interview.')),
       );
@@ -208,7 +269,7 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
                   const SizedBox(height: 16),
                   _SectionHeader(
                     title: 'Behavioral coaching prompts',
-                    subtitle: 'These prompts come directly from the analysis response.',
+                    subtitle: 'Improve your answer using the prompts below:',
                   ),
                   const SizedBox(height: 10),
                   if (state.coachingQuestions.isEmpty)
@@ -225,33 +286,77 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
                   const SizedBox(height: 8),
                   _SectionHeader(
                     title: 'Editable transcript',
-                    subtitle: 'Review each sentence, improve weak sections, then submit again.',
+                    subtitle: 'Tap on any highlighted sentence to see errors and recommendations.',
                   ),
                   const SizedBox(height: 10),
-                  ...state.orderedSentenceIndices.map(
-                    (int index) {
-                      final SentenceFeedback? feedback = state.feedbackFor(index);
-                      final TextEditingController controller =
-                          _controllerFor(index, state.sentenceTextFor(index));
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
-                        child: _SentenceCard(
-                          index: index,
-                          controller: controller,
-                          feedback: feedback,
-                          onChanged: (String value) {
-                            bloc.add(
-                              UpdateTranscriptSentenceEvent(
-                                sentenceIndex: index,
-                                text: value,
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: AppColors.cardBorder),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ...state.orderedSentenceIndices.map(
+                          (int index) {
+                            final SentenceFeedback? feedback = state.feedbackFor(index);
+                            final TextEditingController controller =
+                                _controllerFor(index, state.sentenceTextFor(index));
+                            final bool hasError = feedback != null;
+                            
+                            return GestureDetector(
+                              key: _feedbackKeys[index],
+                              onTap: hasError
+                                  ? () => _showErrorPopup(context, feedback!)
+                                  : null,
+                              child: Container(
+                                width: double.infinity,
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                decoration: BoxDecoration(
+                                  color: hasError 
+                                      ? const Color(0x1AE53935)  // Light red tint
+                                      : Colors.transparent,
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: TextField(
+                                  controller: controller,
+                                  onChanged: (String value) {
+                                    bloc.add(
+                                      UpdateTranscriptSentenceEvent(
+                                        sentenceIndex: index,
+                                        text: value,
+                                      ),
+                                    );
+                                  },
+                                  maxLines: null,
+                                  minLines: 1,
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    height: 1.5,
+                                    color: AppColors.textPrimary,
+                                    backgroundColor: hasError 
+                                        ? const Color(0x1AE53935)
+                                        : Colors.transparent,
+                                  ),
+                                  decoration: const InputDecoration(
+                                    border: InputBorder.none,
+                                    contentPadding: EdgeInsets.zero,
+                                    isDense: true,
+                                    hintText: 'Edit sentence here...',
+                                    hintStyle: TextStyle(color: AppColors.textTertiary),
+                                  ),
+                                ),
                               ),
                             );
                           },
                         ),
-                      );
-                    },
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 16),
                   if (state.hasEvaluation) ...<Widget>[
                     _EvaluationCard(result: state.evaluationResult!),
                     const SizedBox(height: 16),
@@ -263,6 +368,26 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
                         text: 'You reached the maximum number of evaluation attempts.',
                       ),
                     ),
+                  // Behavioral coaching improvement text field below each question
+                  const SizedBox(height: 8),
+                  _SectionHeader(
+                    title: 'Your improvement notes',
+                    subtitle: 'Write down how you plan to improve your answer:',
+                  ),
+                  const SizedBox(height: 10),
+                  ...state.coachingQuestions.map(
+                    (BehavioralQuestions question) => Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _ImprovementTextField(
+                        question: question.question,
+                        onChanged: (String value) {
+                          // Store improvement notes if needed (optional extension)
+                          // This maintains the requested UI without affecting data/repository
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Wrap(
                     spacing: 10,
                     runSpacing: 10,
@@ -305,7 +430,7 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
                         ? 'Pass condition met. Final interview is unlocked.'
                         : state.attemptLimitReached
                             ? 'You can continue to the final interview after using both attempts.'
-                            : 'Edit your transcript freely. When you are ready, submit for backend evaluation.',
+                            : 'Edit your transcript freely. Tap red sentences to see improvement tips. When ready, submit for evaluation.',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: AppColors.textTertiary,
                         ),
@@ -315,6 +440,64 @@ class _TrainingEditorViewState extends State<_TrainingEditorView> {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _ImprovementTextField extends StatelessWidget {
+  const _ImprovementTextField({
+    required this.question,
+    required this.onChanged,
+  });
+
+  final String question;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'For: $question',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 13,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: 8),
+          TextField(
+            onChanged: onChanged,
+            maxLines: 3,
+            minLines: 2,
+            decoration: const InputDecoration(
+              hintText: 'Write your improvement plan here...',
+              hintStyle: TextStyle(color: AppColors.textTertiary, fontSize: 13),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.cardBorder),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.cardBorder),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.all(Radius.circular(8)),
+                borderSide: BorderSide(color: AppColors.textSecondary),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -529,140 +712,6 @@ class _PromptCard extends StatelessWidget {
             'Example: ${question.example}',
             style: const TextStyle(color: AppColors.textTertiary, height: 1.35),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SentenceCard extends StatelessWidget {
-  const _SentenceCard({
-    required this.index,
-    required this.controller,
-    required this.onChanged,
-    required this.feedback,
-  });
-
-  final int index;
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final SentenceFeedback? feedback;
-
-  @override
-  Widget build(BuildContext context) {
-    final bool hasFeedback = feedback != null;
-    final Color borderColor = hasFeedback ? const Color(0xFFEF9A9A) : AppColors.cardBorder;
-    final Color fillColor = hasFeedback ? const Color(0xFFFFF8F8) : Colors.white;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 220),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: fillColor,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Text(
-                'Sentence ${index + 1}',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
-                ),
-              ),
-              const Spacer(),
-              if (hasFeedback)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFEBEE),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    feedback!.improvementType,
-                    style: const TextStyle(
-                      color: Color(0xFFE53935),
-                      fontSize: 11,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          TextField(
-            controller: controller,
-            onChanged: onChanged,
-            maxLines: null,
-            minLines: 2,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.45,
-              color: AppColors.textPrimary,
-            ),
-            decoration: const InputDecoration(
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-              isDense: true,
-            ),
-          ),
-          if (hasFeedback) ...<Widget>[
-            const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F9FA),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    feedback!.issue,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Improvement type: ${feedback!.improvementType}',
-                    style: const TextStyle(color: AppColors.textSecondary),
-                  ),
-                  const SizedBox(height: 8),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: EdgeInsets.zero,
-                    title: const Text(
-                      'View improvement suggestion',
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    children: <Widget>[
-                      Align(
-                        alignment: Alignment.centerLeft,
-                        child: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text(
-                            feedback!.improvedExample,
-                            style: const TextStyle(color: AppColors.textSecondary),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
         ],
       ),
     );

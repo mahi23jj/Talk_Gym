@@ -22,7 +22,7 @@ class StarTrainingPage extends StatelessWidget {
 
   final QuestionItem question;
   final StarMetrics starmetrics;
-  final String attemptid;
+  final int attemptid;
 
 
   @override
@@ -44,7 +44,7 @@ class _StarTrainingViewHost extends StatelessWidget {
 
   final QuestionItem question;
 
-  final String attemptid;
+  final int attemptid;
 
   @override
   Widget build(BuildContext context) {

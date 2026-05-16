@@ -9,18 +9,24 @@ class BehavioralTrainingSubmissionService {
   BehavioralTrainingSubmissionService({http.Client? client, Uri? baseUri})
     : _client = client ?? http.Client(),
       _ownsClient = client == null,
-      _baseUri = baseUri ?? Uri.parse('https://f2da-102-212-68-34.ngrok-free.app');
+      _baseUri = baseUri ?? Uri.parse('https://3130-196-190-62-89.ngrok-free.app');
 
   final http.Client _client;
   final bool _ownsClient;
   final Uri _baseUri;
 
   Future<BehavioralTrainingSubmissionResult> submitTrainingAttempt({
-    required String attemptId,
+    required int attemptId,
     required String transcript,
     required String trainingType,
     String? bearerToken,
   }) async {
+    if (attemptId <= 0) {
+      throw StateError('Attempt ID is invalid. Cannot submit training attempt.');
+    }
+
+    print('Submitting training attempt. Attempt ID: $attemptId, Transcript length: ${transcript.length}, Training type: $trainingType');
+
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
     final Uri endpoint = _baseUri.replace(path: '/api/v1/training/submit');
 
@@ -61,7 +67,7 @@ class BehavioralTrainingSubmissionService {
   }) async {
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
     final Uri endpoint = _baseUri.replace(
-      path: '/api/v1/training/$trainingAttemptId/results/$jobId',
+      path: '/api/v1/training/results/$jobId',
     );
 
     final http.Response response = await _client.get(

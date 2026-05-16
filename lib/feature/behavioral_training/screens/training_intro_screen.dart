@@ -12,7 +12,7 @@ class BehavioralTrainingIntroScreen extends StatelessWidget {
 
   final AnalysisResult analysisResult;
 
-  final String? finalAttemptId;
+  final int? finalAttemptId;
 
   @override
   Widget build(BuildContext context) {

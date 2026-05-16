@@ -2,7 +2,7 @@ import 'package:talk_gym/feature/behavioral_training/data/model/behavioral_train
 
 abstract class BehavioralTrainingRepository {
   Future<BehavioralTrainingSubmissionResult> submitTrainingAttempt({
-    required String attemptId,
+    required int attemptId,
     required String transcript,
     required String trainingType,
   });

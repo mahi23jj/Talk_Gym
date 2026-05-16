@@ -1,7 +1,6 @@
 import 'dart:async';
-import 'dart:io';
 import 'dart:convert';
-
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/core/auth_token_storage.dart';
 import 'package:talk_gym/feature/final_analysis/data/model/final_interview_result.dart';
@@ -10,11 +9,47 @@ class QuestionAnswerSubmissionService {
   QuestionAnswerSubmissionService({http.Client? client, Uri? baseUri})
     : _client = client ?? http.Client(),
       _ownsClient = client == null,
-      _baseUri = baseUri ?? Uri.parse('https://f2da-102-212-68-34.ngrok-free.app');
+      _baseUri =
+          baseUri ?? Uri.parse('https://3130-196-190-62-89.ngrok-free.app');
 
   final http.Client _client;
   final bool _ownsClient;
   final Uri _baseUri;
+
+  Future<({String url, int sizeBytes})> uploadAudio(String path) async {
+    final File file = File(path);
+    if (!file.existsSync()) {
+      throw StateError('Audio file not found: $path');
+    }
+
+    final Uri endpoint = _baseUri.replace(path: '/api/v1/upload/audio');
+    final http.MultipartRequest request = http.MultipartRequest('POST', endpoint);
+    request.files.add(await http.MultipartFile.fromPath('audio', path));
+
+    final http.StreamedResponse response = await request.send();
+    final String responseBody = await response.stream.bytesToString();
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw StateError(
+        'Failed to upload audio. HTTP ${response.statusCode}: $responseBody',
+      );
+    }
+
+    final dynamic decoded = jsonDecode(responseBody);
+    if (decoded is! Map) {
+      throw const FormatException('Invalid audio upload response format.');
+    }
+
+    final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
+    final String url = (json['url'] as String? ?? '').trim();
+    final int? sizeBytes = _asInt(json['size'] ?? json['size_bytes']);
+
+    if (url.isEmpty) {
+      throw const FormatException('Audio upload response missing url.');
+    }
+
+    return (url: url, sizeBytes: sizeBytes ?? 0);
+  }
 
   Future<int> submitAnswer({
     required String questionId,
@@ -23,35 +58,41 @@ class QuestionAnswerSubmissionService {
     required String voiceFilePath,
   }) async {
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
+    final ({String url, int sizeBytes}) uploaded = await uploadAudio(
+      voiceFilePath,
+    );
+
+    print(
+      'Uploaded to Cloudinary: url=${uploaded.url}, sizeBytes=${uploaded.sizeBytes}',
+    );
 
     final Uri endpoint = _baseUri.replace(
       path: '/api/v1/attempt/submit/$questionId',
     );
 
-    final http.MultipartRequest request =
-        http.MultipartRequest('POST', endpoint)
-          ..headers['Authorization'] = 'Bearer $resolvedBearerToken'
-          ..headers['Accept'] = 'application/json'
-          ..fields['duration_sec'] = durationSeconds.toString();
+    final String body = jsonEncode(<String, dynamic>{
+      'audio_url': uploaded.url,
+      'size_bytes': uploaded.sizeBytes,
+      'duration_seconds': durationSeconds,
+    });
 
-    if (!File(voiceFilePath).existsSync()) {
-      throw StateError('Audio file not found: $voiceFilePath');
-    }
-
-    request.files.add(
-      await http.MultipartFile.fromPath('audio', voiceFilePath),
+    final http.Response response = await _client.post(
+      endpoint,
+      headers: <String, String>{
+        'Authorization': 'Bearer $resolvedBearerToken',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: body,
     );
-
-    final http.StreamedResponse response = await _client.send(request);
-    final String body = await response.stream.bytesToString();
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
-        'Failed to submit answer. HTTP ${response.statusCode}: $body',
+        'Failed to submit answer. HTTP ${response.statusCode}: ${response.body}',
       );
     }
 
-    final dynamic decoded = jsonDecode(body);
+    final dynamic decoded = jsonDecode(response.body);
     if (decoded is! Map) {
       throw const FormatException('Invalid submit response format.');
     }
@@ -66,40 +107,49 @@ class QuestionAnswerSubmissionService {
   }
 
   Future<String> submitFinalAnswer({
-    required String attemptId,
+    required int attemptId,
     required int durationSeconds,
     String? bearerToken,
     required String voiceFilePath,
   }) async {
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
-    final Uri endpoint = _baseUri.replace(path: '/api/v1/submit/final/$attemptId');
-    final http.MultipartRequest request =
-        http.MultipartRequest('POST', endpoint)
-          ..headers['Authorization'] = 'Bearer $resolvedBearerToken'
-          ..headers['Accept'] = 'application/json'
-          ..fields['duration_sec'] = durationSeconds.toString();
+    final ({String url, int sizeBytes}) uploaded = await uploadAudio(
+      voiceFilePath,
+    );
 
-    if (!File(voiceFilePath).existsSync()) {
-      throw StateError('Audio file not found: $voiceFilePath');
-    }
+    final Uri endpoint = _baseUri.replace(
+      path: '/api/v1/attempt/submit/final/$attemptId',
+    );
 
-    request.files.add(await http.MultipartFile.fromPath('audio', voiceFilePath));
-    final http.StreamedResponse response = await _client.send(request);
-    final String body = await response.stream.bytesToString();
+    final String body = jsonEncode(<String, dynamic>{
+      'audio_url': uploaded.url,
+      'size_bytes': uploaded.sizeBytes,
+      'duration_seconds': durationSeconds,
+    });
+
+    final http.Response response = await _client.post(
+      endpoint,
+      headers: <String, String>{
+        'Authorization': 'Bearer $resolvedBearerToken',
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+      body: body,
+    );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw StateError(
-        'Failed to submit final interview. HTTP ${response.statusCode}: $body',
+        'Failed to submit final interview. HTTP ${response.statusCode}: ${response.body}',
       );
     }
 
-    final dynamic decoded = jsonDecode(body);
+    final dynamic decoded = jsonDecode(response.body);
     if (decoded is! Map) {
       throw const FormatException('Invalid final submit response format.');
     }
 
     final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
-    final String sessionId = (json['session_id'] as String? ?? '').trim();
+    final String sessionId = _coerceSessionId(json['session_id']);
     if (sessionId.isEmpty) {
       throw const FormatException('Final submit response missing session_id.');
     }
@@ -111,7 +161,9 @@ class QuestionAnswerSubmissionService {
     String? bearerToken,
   }) async {
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
-    final Uri uri = _baseUri.replace(path: '/api/v1/attempt/result/final/$sessionId');
+    final Uri uri = _baseUri.replace(
+      path: '/api/v1/attempt/analysis/$sessionId',
+    );
 
     final http.Response response = await _client.get(
       uri,
@@ -132,7 +184,57 @@ class QuestionAnswerSubmissionService {
       throw const FormatException('Invalid final result response format.');
     }
 
-    return FinalInterviewResult.fromJson(Map<String, dynamic>.from(decoded));
+    final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
+    
+    // Map backend response to FinalInterviewResult format
+    final Map<String, dynamic> rawAnalysis = 
+        _asMap(json['raw_analysis_json'] ?? {});
+    
+    // Build the expected nested structure from backend flat response
+    final Map<String, dynamic> mappedJson = {
+      'status': 'completed',
+      'message': _asString(json['feedback']),
+      'interview': {},
+      'performance_summary': {
+        'overall_score': {
+          'initial': 0,
+          'final': _asDouble(json['score']) ?? 0,
+          'change': 0,
+          'change_percent': 0,
+          'trend': 'stable',
+        },
+        'performance_level': 'reviewed',
+        'primary_strength': '',
+        'primary_improvement_area': '',
+      },
+      'category_scores': {
+        'clarity': _buildScoreComparison(rawAnalysis['content']?['clarity']),
+        'structure_star': _buildScoreComparison(rawAnalysis['content']?['structure_star']),
+        'specificity': _buildScoreComparison(rawAnalysis['content']?['specificity']),
+        'ownership': _buildScoreComparison(rawAnalysis['behavioral']?['ownership']),
+        'initiative': _buildScoreComparison(rawAnalysis['behavioral']?['initiative']),
+        'impact': _buildScoreComparison(rawAnalysis['behavioral']?['impact']),
+      },
+      'final_analysis': {},
+      'improvement_analysis': {},
+      'visualization_ready': {},
+      'coaching': {
+        'behavioral_questions': rawAnalysis['behavioral_questions'] ?? [],
+      },
+      'star_rewrite_example': rawAnalysis['star_example'] ?? {},
+      'sentence_feedback': rawAnalysis['sentence_feedback'] ?? [],
+    };
+
+    return FinalInterviewResult.fromJson(mappedJson);
+  }
+
+  Map<String, dynamic> _buildScoreComparison(dynamic score) {
+    return {
+      'initial': 0,
+      'final': _asDouble(score) ?? 0,
+      'change': 0,
+      'trend': 'stable',
+    };
   }
 
   Future<FinalInterviewResult> pollFinalResultUntilCompleted({
@@ -154,12 +256,16 @@ class QuestionAnswerSubmissionService {
         return result;
       }
       if (status == 'failed' || status == 'error') {
-        throw StateError(result.message ?? 'Final interview processing failed.');
+        throw StateError(
+          result.message ?? 'Final interview processing failed.',
+        );
       }
 
       await Future<void>.delayed(pollInterval);
     }
-    throw TimeoutException('Timed out while waiting for final interview analysis.');
+    throw TimeoutException(
+      'Timed out while waiting for final interview analysis.',
+    );
   }
 
   Future<void> pollResultUntilDone({
@@ -191,8 +297,6 @@ class QuestionAnswerSubmissionService {
       }
 
       final dynamic decoded = jsonDecode(response.body);
-
-      print('Polled result for job $jobId: $decoded');
       if (decoded is! Map) {
         throw const FormatException('Invalid result response format.');
       }
@@ -201,13 +305,12 @@ class QuestionAnswerSubmissionService {
         decoded,
       );
 
-
       final String status = (resultPayload['status'] as String? ?? '')
           .trim()
           .toLowerCase();
 
-      if (status == 'done') {
-       return ;
+      if (status == 'done' || status == 'completed') {
+        return;
       }
 
       if (status == 'failed' || status == 'error') {
@@ -237,7 +340,6 @@ class QuestionAnswerSubmissionService {
       voiceFilePath: voiceFilePath,
     );
 
-
     await pollResultUntilDone(jobId: jobId, bearerToken: bearerToken);
 
     return jobId;
@@ -247,9 +349,24 @@ class QuestionAnswerSubmissionService {
     final String token =
         (bearerToken ?? await AuthTokenStorage.getToken() ?? '').trim();
     if (token.isEmpty) {
-      throw StateError('Missing authentication token. Please login/signin first.');
+      throw StateError(
+        'Missing authentication token. Please login/signin first.',
+      );
     }
     return token;
+  }
+
+  static String _coerceSessionId(dynamic value) {
+    if (value == null) {
+      return '';
+    }
+    if (value is int || value is num) {
+      return value.toString();
+    }
+    if (value is String) {
+      return value.trim();
+    }
+    return value.toString().trim();
   }
 
   int? _asInt(dynamic value) {
@@ -263,6 +380,42 @@ class QuestionAnswerSubmissionService {
       return int.tryParse(value);
     }
     return null;
+  }
+
+  static String? _asString(dynamic value) {
+    if (value is String) {
+      return value.trim();
+    }
+    if (value != null) {
+      return value.toString().trim();
+    }
+    return null;
+  }
+
+  static double? _asDouble(dynamic value) {
+    if (value is double) {
+      return value;
+    }
+    if (value is int) {
+      return value.toDouble();
+    }
+    if (value is num) {
+      return value.toDouble();
+    }
+    if (value is String) {
+      return double.tryParse(value);
+    }
+    return null;
+  }
+
+  static Map<String, dynamic> _asMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return Map<String, dynamic>.from(value);
+    }
+    return {};
   }
 
   void dispose() {

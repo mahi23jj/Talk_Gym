@@ -8,7 +8,7 @@ class HttpQuestionRepository implements QuestionRepository {
   HttpQuestionRepository({http.Client? client, Uri? baseUri})
       : _client = client ?? http.Client(),
         _ownsClient = client == null,
-        _baseUri = baseUri ?? Uri.parse('https://f2da-102-212-68-34.ngrok-free.app');
+        _baseUri = baseUri ?? Uri.parse('https://3130-196-190-62-89.ngrok-free.app');
 
   final http.Client _client;
   final bool _ownsClient;

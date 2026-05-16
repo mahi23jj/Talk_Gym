@@ -92,6 +92,7 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                   selection: TextSelection.collapsed(
                     offset: state.searchQuery.length,
                   ),
+                  composing: TextRange.empty,
                 );
               }
 

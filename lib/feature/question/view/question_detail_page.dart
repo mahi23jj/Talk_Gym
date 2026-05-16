@@ -41,7 +41,7 @@ class QuestionDetailPage extends StatefulWidget {
 
   final QuestionItem item;
   final InterviewMode mode;
-  final String? finalAttemptId;
+  final int? finalAttemptId;
 
   @override
   State<QuestionDetailPage> createState() => _QuestionDetailPageState();
@@ -372,8 +372,8 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
 
     try {
       if (widget.mode == InterviewMode.finalInterview) {
-        final String attemptId = (widget.finalAttemptId ?? '').trim();
-        if (attemptId.isEmpty) {
+        final int attemptId = widget.finalAttemptId ?? 0;
+        if (attemptId == 0) {
           throw StateError('Missing attempt id for final interview.');
         }
         final String sessionId = await _submissionService.submitFinalAnswer(
@@ -436,7 +436,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
               ) {
                 return FadeTransition(
                   opacity: animation,
-                  child: AnalysisResultsPage(attemptId: attemptId.toString()),
+                  child: AnalysisResultsPage(attemptId: attemptId),
                 );
               },
         ),
@@ -494,10 +494,8 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                                 _buildQuestionCard(),
                                 const SizedBox(height: 16),
                                 _buildCoachingTip(),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 30),
                                 _buildRecordingSection(),
-                                const SizedBox(height: 16),
-                                _buildPastAnswersSection(),
                               ],
                             ),
                           ),
@@ -675,7 +673,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            widget.item.title,
+            widget.item.description,
             style: const TextStyle(
               fontSize: 20,
               height: 1.4,
@@ -1237,7 +1235,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
     );
   }
 
-  Widget _buildPastAnswersSection() {
+  /* Widget _buildPastAnswersSection() {
     return Container(
       decoration: BoxDecoration(
         color: const Color(0xFFFAFAFA),
@@ -1363,7 +1361,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       ),
     );
   }
-
+ */
   Widget _buildPastAnswerRow(_PastAnswer answer) {
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

@@ -227,69 +227,74 @@ class _VoiceRecorderWidgetState extends State<VoiceRecorderWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: <Widget>[
-        if (_permissionDenied)
-          Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFDDDDDD)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                const Text(
-                  'Microphone permission is required to record voice answers.',
-                  style: TextStyle(fontSize: 13),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (BuildContext context, Widget? child) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            if (_permissionDenied)
+              Container(
+                margin: const EdgeInsets.only(bottom: 10),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFDDDDDD)),
                 ),
-                TextButton(
-                  onPressed: openAppSettings,
-                  child: const Text('Open settings'),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    const Text(
+                      'Microphone permission is required to record voice answers.',
+                      style: TextStyle(fontSize: 13),
+                    ),
+                    TextButton(
+                      onPressed: openAppSettings,
+                      child: const Text('Open settings'),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        if (_controller.phase == VoiceRecorderPhase.idle)
-          _buildIdle()
-        else if (_controller.phase == VoiceRecorderPhase.recording ||
-            _controller.phase == VoiceRecorderPhase.paused)
-          _buildRecording()
-        else
-          _buildReview(),
-        if (widget.showTextToggle)
-          Align(
-            alignment: Alignment.center,
-            child: TextButton(
-              onPressed: widget.onTextModeToggle,
-              child: Text(
-                widget.textMode
-                    ? 'Switch to voice input'
-                    : 'Switch to text input',
-                style: const TextStyle(fontSize: 12),
               ),
-            ),
-          ),
-        if (widget.textMode)
-          TextField(
-            controller: _textController,
-            minLines: 4,
-            maxLines: 4,
-            onChanged: widget.onTextChanged,
-            decoration: InputDecoration(
-              hintText: 'Type your answer...',
-              filled: true,
-              fillColor: const Color(0xFFF6F6F6),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+            if (_controller.phase == VoiceRecorderPhase.idle)
+              _buildIdle()
+            else if (_controller.phase == VoiceRecorderPhase.recording ||
+                _controller.phase == VoiceRecorderPhase.paused)
+              _buildRecording()
+            else
+              _buildReview(),
+            if (widget.showTextToggle)
+              Align(
+                alignment: Alignment.center,
+                child: TextButton(
+                  onPressed: widget.onTextModeToggle,
+                  child: Text(
+                    widget.textMode
+                        ? 'Switch to voice input'
+                        : 'Switch to text input',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ),
               ),
-            ),
-          ),
-      ],
+            if (widget.textMode)
+              TextField(
+                controller: _textController,
+                minLines: 4,
+                maxLines: 4,
+                onChanged: widget.onTextChanged,
+                decoration: InputDecoration(
+                  hintText: 'Type your answer...',
+                  filled: true,
+                  fillColor: const Color(0xFFF6F6F6),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 

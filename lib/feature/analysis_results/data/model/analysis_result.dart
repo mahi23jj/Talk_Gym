@@ -109,9 +109,9 @@ class BehavioralQuestions {
 
   factory BehavioralQuestions.fromJson(Map<String, dynamic> json) {
     return BehavioralQuestions(
-      question: json['question'],
-      target: json['target'],
-      example: json['example'],
+      question: _asString(json['question']),
+      target: _asString(json['target_improvement'] ?? json['target']),
+      example: _asString(json['strong_answer_example'] ?? json['example']),
     );
   }
 

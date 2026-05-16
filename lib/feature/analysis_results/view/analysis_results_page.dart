@@ -14,7 +14,7 @@ import 'package:talk_gym/feature/star_training/view/star_training_page.dart';
 class AnalysisResultsPage extends StatelessWidget {
   const AnalysisResultsPage({required this.attemptId, super.key});
 
-  final String attemptId;
+  final int attemptId;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +30,7 @@ class AnalysisResultsPage extends StatelessWidget {
 class _AnalysisResultsView extends StatefulWidget {
     const _AnalysisResultsView({required this.attemptId});
 
-    final String attemptId;
+    final int attemptId;
 
   @override
   State<_AnalysisResultsView> createState() => _AnalysisResultsViewState();
@@ -1048,22 +1048,6 @@ class _SentenceFeedbackSheet extends StatelessWidget {
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(height: 1.45),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'Manual edit',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  TextField(
-                    controller: controller,
-                    minLines: 3,
-                    maxLines: 5,
-                    decoration: const InputDecoration(
-                      hintText: 'Write your own improved version',
                     ),
                   ),
                   const SizedBox(height: 14),

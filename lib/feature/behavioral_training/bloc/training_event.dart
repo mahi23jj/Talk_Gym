@@ -13,7 +13,7 @@ class LoadBehavioralTrainingEvent extends TrainingEvent {
   });
 
   final AnalysisResult analysisResult;
-  final String attemptId;
+  final int attemptId;
 }
 
 class UpdateTranscriptSentenceEvent extends TrainingEvent {

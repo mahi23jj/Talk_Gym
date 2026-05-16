@@ -14,7 +14,7 @@ class StarSuccessPage extends StatefulWidget {
     super.key,
   });
 
-  final String attemptid;
+  final int attemptid;
   final QuestionItem question;
 
   @override

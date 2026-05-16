@@ -76,6 +76,16 @@ class _FinalAnalysisView extends StatelessWidget {
             final Map<String, ScoreComparison> categories =
                 result.categoryScores.asMap();
 
+            final List<String> radarLabels = result.visualizationReady.radarLabels.isNotEmpty
+                ? result.visualizationReady.radarLabels
+                : categories.keys.toList();
+            final List<double> radarInitial = result.visualizationReady.radarLabels.isNotEmpty
+                ? result.visualizationReady.initialScores
+                : categories.values.map((ScoreComparison e) => e.initial).toList();
+            final List<double> radarFinal = result.visualizationReady.radarLabels.isNotEmpty
+                ? result.visualizationReady.finalScores
+                : categories.values.map((ScoreComparison e) => e.finalScore).toList();
+
             return RefreshIndicator(
               onRefresh: () => context.read<FinalAnalysisCubit>().retry(),
               child: ListView(
@@ -84,6 +94,10 @@ class _FinalAnalysisView extends StatelessWidget {
                   _HeaderSummary(summary: result.performanceSummary),
                   const SizedBox(height: 12),
                   _PerformanceCard(summary: result.performanceSummary),
+                  if (result.finalAnalysis.summary.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _SummaryCard(text: result.finalAnalysis.summary),
+                  ],
                   const SizedBox(height: 12),
                   const _SectionTitle('Skill Comparison'),
                   const SizedBox(height: 8),
@@ -110,18 +124,19 @@ class _FinalAnalysisView extends StatelessWidget {
                   ),
                   const SizedBox(height: 12),
                   _FlagsCard(flags: result.finalAnalysis.flags),
+                  if (!result.coaching.isEmpty) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _CoachingCard(coaching: result.coaching),
+                  ],
+                  if (!result.starRewriteExample.isEmpty) ...<Widget>[
+                    const SizedBox(height: 12),
+                    _StarRewriteCard(example: result.starRewriteExample),
+                  ],
                   const SizedBox(height: 12),
                   _RadarCard(
-                    labels: result.visualizationReady.radarLabels.isNotEmpty
-                        ? result.visualizationReady.radarLabels
-                        : categories.keys.toList(),
-                    initialScores: result.visualizationReady.initialScores
-                            .isNotEmpty
-                        ? result.visualizationReady.initialScores
-                        : categories.values.map((ScoreComparison e) => e.initial).toList(),
-                    finalScores: result.visualizationReady.finalScores.isNotEmpty
-                        ? result.visualizationReady.finalScores
-                        : categories.values.map((ScoreComparison e) => e.finalScore).toList(),
+                    labels: radarLabels,
+                    initialScores: radarInitial,
+                    finalScores: radarFinal,
                   ),
                 ],
               ),
@@ -139,9 +154,12 @@ class _HeaderSummary extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bool improved = summary.overallDelta >= 0;
+    final OverallScore overall = summary.overallScore;
+    final bool improved = overall.change >= 0;
     final Color color = improved ? AppColors.successDark : Colors.redAccent;
-    final String trend = improved ? 'Improved' : 'Regressed';
+    final String trendLabel = overall.trend.isNotEmpty
+        ? overall.trend
+        : (improved ? 'Improved' : 'Regressed');
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -153,7 +171,7 @@ class _HeaderSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
           Text(
-            '${improved ? '+' : ''}${summary.overallDelta.toStringAsFixed(1)} overall change',
+            '${improved ? '+' : ''}${overall.change.toStringAsFixed(1)} overall score change',
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 6),
@@ -165,11 +183,19 @@ class _HeaderSummary extends StatelessWidget {
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(trend, style: TextStyle(color: color)),
+                child: Text(trendLabel, style: TextStyle(color: color)),
               ),
               const SizedBox(width: 8),
-              Text('${summary.improvementPercentage.toStringAsFixed(1)}% improved'),
+              Text(
+                '${overall.changePercent >= 0 ? '+' : ''}'
+                '${overall.changePercent.toStringAsFixed(1)}% vs initial',
+              ),
             ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'Scores: ${overall.initial.toStringAsFixed(0)} → ${overall.finalScore.toStringAsFixed(0)}',
+            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
         ],
       ),
@@ -198,6 +224,35 @@ class _PerformanceCard extends StatelessWidget {
           Text('Level: ${summary.performanceLevel}'),
           Text('Primary strength: ${summary.primaryStrength}'),
           Text('Primary improvement area: ${summary.primaryImprovementArea}'),
+        ],
+      ),
+    );
+  }
+}
+
+class _SummaryCard extends StatelessWidget {
+  const _SummaryCard({required this.text});
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const _SectionTitle('Summary'),
+          const SizedBox(height: 8),
+          Text(
+            text,
+            style: const TextStyle(color: AppColors.textSecondary, height: 1.45),
+          ),
         ],
       ),
     );
@@ -240,6 +295,14 @@ class _SkillComparisonTile extends StatelessWidget {
                 '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}',
                 style: TextStyle(color: deltaColor, fontWeight: FontWeight.w700),
               ),
+              if (score.trend.isNotEmpty) ...<Widget>[
+                const SizedBox(width: 6),
+                Chip(
+                  label: Text(score.trend, style: const TextStyle(fontSize: 11)),
+                  visualDensity: VisualDensity.compact,
+                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 8),
@@ -272,9 +335,27 @@ class _ImprovementAreaCard extends StatelessWidget {
         children: <Widget>[
           const _SectionTitle('Improvement Analysis'),
           const SizedBox(height: 10),
-          _ChipWrap(label: 'Improved', items: data.improvedAreas, color: Colors.green),
-          _ChipWrap(label: 'Unchanged', items: data.unchangedAreas, color: Colors.blueGrey),
-          _ChipWrap(label: 'Regressed', items: data.regressedAreas, color: Colors.red),
+          _ChipWrap(
+            label: 'Improved',
+            items: data.improvedAreaLabels,
+            color: Colors.green,
+          ),
+          if (data.improvedSkills.isNotEmpty)
+            _SkillDeltaWrap(
+              label: 'Improved (detail)',
+              items: data.improvedSkills,
+              color: Colors.green,
+            ),
+          _SkillDeltaWrap(
+            label: 'Unchanged',
+            items: data.unchangedSkills,
+            color: Colors.blueGrey,
+          ),
+          _SkillDeltaWrap(
+            label: 'Regressed',
+            items: data.regressedSkills,
+            color: Colors.red,
+          ),
         ],
       ),
     );
@@ -305,6 +386,120 @@ class _ChipWrap extends StatelessWidget {
                       .map((String e) => Chip(label: Text(e), backgroundColor: color.withValues(alpha: 0.1)))
                       .toList(),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SkillDeltaWrap extends StatelessWidget {
+  const _SkillDeltaWrap({
+    required this.label,
+    required this.items,
+    required this.color,
+  });
+
+  final String label;
+  final List<SkillChangeItem> items;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: items.isEmpty
+                ? <Widget>[const Chip(label: Text('None'))]
+                : items.map((SkillChangeItem e) {
+                    final String subtitle =
+                        '${e.change >= 0 ? '+' : ''}${e.change.toStringAsFixed(1)}'
+                        '${e.trend.isNotEmpty ? ' · ${e.trend}' : ''}';
+                    return Chip(
+                      label: Text('${e.skill} ($subtitle)'),
+                      backgroundColor: color.withValues(alpha: 0.1),
+                    );
+                  }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoachingCard extends StatelessWidget {
+  const _CoachingCard({required this.coaching});
+  final CoachingBlock coaching;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const _SectionTitle('Coaching'),
+          const SizedBox(height: 8),
+          if (coaching.coachMessage.isNotEmpty)
+            Text(coaching.coachMessage, style: const TextStyle(height: 1.4)),
+          if (coaching.nextFocusSkill.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 8),
+            Text('Next focus: ${coaching.nextFocusSkill}'),
+          ],
+          if (coaching.recommendedTrainingMode.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 4),
+            Text('Recommended mode: ${coaching.recommendedTrainingMode}'),
+          ],
+          if (coaching.followupQuestions.isNotEmpty) ...<Widget>[
+            const SizedBox(height: 10),
+            const Text('Follow-up questions', style: TextStyle(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            ...coaching.followupQuestions.map(
+              (FollowupQuestion q) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Text('• ${q.question} (${q.targetSkill})'),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _StarRewriteCard extends StatelessWidget {
+  const _StarRewriteCard({required this.example});
+  final StarRewriteExample example;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          const _SectionTitle('STAR rewrite example'),
+          const SizedBox(height: 8),
+          Text('S: ${example.situation}'),
+          Text('T: ${example.task}'),
+          Text('A: ${example.action}'),
+          Text('R: ${example.result}'),
         ],
       ),
     );
@@ -414,6 +609,11 @@ class _RadarCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<double> combined = <double>[...initialScores, ...finalScores];
+    final double scoreMax = combined.isEmpty
+        ? 100.0
+        : max(10.0, combined.reduce(max) * 1.08);
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -438,6 +638,7 @@ class _RadarCard extends StatelessWidget {
                     labels: labels,
                     initialScores: initialScores,
                     finalScores: finalScores,
+                    scoreMax: scoreMax,
                     progress: value,
                   ),
                 );
@@ -455,12 +656,14 @@ class _RadarPainter extends CustomPainter {
     required this.labels,
     required this.initialScores,
     required this.finalScores,
+    required this.scoreMax,
     required this.progress,
   });
 
   final List<String> labels;
   final List<double> initialScores;
   final List<double> finalScores;
+  final double scoreMax;
   final double progress;
 
   @override
@@ -499,9 +702,11 @@ class _RadarPainter extends CustomPainter {
 
     Path shapeFor(List<double> rawScores) {
       final Path path = Path();
+      final double denom = scoreMax <= 0 ? 100.0 : scoreMax;
       for (int i = 0; i < count; i += 1) {
-        final double score = i < rawScores.length ? rawScores[i].clamp(0, 100) : 0;
-        final double scaled = (score / 100) * radius * progress;
+        final double score = i < rawScores.length ? rawScores[i] : 0;
+        final double scaled =
+            (score / denom).clamp(0.0, 1.0) * radius * progress;
         final double angle = (-pi / 2) + ((2 * pi * i) / count);
         final Offset p = Offset(
           center.dx + cos(angle) * scaled,
@@ -526,7 +731,8 @@ class _RadarPainter extends CustomPainter {
     return oldDelegate.progress != progress ||
         oldDelegate.labels != labels ||
         oldDelegate.initialScores != initialScores ||
-        oldDelegate.finalScores != finalScores;
+        oldDelegate.finalScores != finalScores ||
+        oldDelegate.scoreMax != scoreMax;
   }
 }
 

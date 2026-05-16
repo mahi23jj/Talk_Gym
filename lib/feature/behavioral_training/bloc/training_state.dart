@@ -15,7 +15,7 @@ enum BehavioralTrainingStatus {
 class TrainingState {
   const TrainingState({
     this.analysisResult,
-    this.attemptId = '',
+    this.attemptId = 0,
     this.editedSentences = const <int, String>{},
     this.attemptsUsed = 0,
     this.maxAttempts = 2,
@@ -28,7 +28,7 @@ class TrainingState {
   });
 
   final AnalysisResult? analysisResult;
-  final String attemptId;
+  final int attemptId;
   final Map<int, String> editedSentences;
   final int attemptsUsed;
   final int maxAttempts;
@@ -96,7 +96,7 @@ class TrainingState {
   TrainingState copyWith({
     AnalysisResult? analysisResult,
     bool clearAnalysisResult = false,
-    String? attemptId,
+    int? attemptId,
     Map<int, String>? editedSentences,
     int? attemptsUsed,
     int? maxAttempts,

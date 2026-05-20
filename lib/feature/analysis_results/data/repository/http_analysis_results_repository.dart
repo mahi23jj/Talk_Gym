@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/core/auth_token_storage.dart';
+import 'package:talk_gym/core/constants/api_constants.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/analysis_results/data/repository/analysis_results_repository.dart';
 
@@ -12,7 +13,7 @@ class HttpAnalysisResultsRepository implements AnalysisResultsRepository {
     Uri? baseUri,
   })  : _client = client ?? http.Client(),
        _ownsClient = client == null,
-       _baseUri = baseUri ?? Uri.parse('https://8378-102-212-68-43.ngrok-free.app');
+       _baseUri = baseUri ?? Uri.parse('${ApiConstants.baseUrl}');
 
   final int attemptId;
   final http.Client _client;

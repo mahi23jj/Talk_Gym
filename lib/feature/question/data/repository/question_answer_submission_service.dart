@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/core/auth_token_storage.dart';
+import 'package:talk_gym/core/constants/api_constants.dart';
 import 'package:talk_gym/feature/final_analysis/data/model/final_interview_result.dart';
 
 class QuestionAnswerSubmissionService {
@@ -10,7 +11,7 @@ class QuestionAnswerSubmissionService {
     : _client = client ?? http.Client(),
       _ownsClient = client == null,
       _baseUri =
-          baseUri ?? Uri.parse('https://8378-102-212-68-43.ngrok-free.app');
+          baseUri ?? Uri.parse('${ApiConstants.baseUrl}');
 
   final http.Client _client;
   final bool _ownsClient;

@@ -3,13 +3,14 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/core/auth_token_storage.dart';
+import 'package:talk_gym/core/constants/api_constants.dart';
 import 'package:talk_gym/feature/behavioral_training/data/model/behavioral_training_result.dart';
 
 class BehavioralTrainingSubmissionService {
   BehavioralTrainingSubmissionService({http.Client? client, Uri? baseUri})
     : _client = client ?? http.Client(),
       _ownsClient = client == null,
-      _baseUri = baseUri ?? Uri.parse('https://8378-102-212-68-43.ngrok-free.app');
+      _baseUri = baseUri ?? Uri.parse('${ApiConstants.baseUrl}');
 
   final http.Client _client;
   final bool _ownsClient;

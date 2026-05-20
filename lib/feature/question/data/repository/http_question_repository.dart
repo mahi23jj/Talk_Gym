@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:talk_gym/core/constants/api_constants.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/question/data/repository/question_repository.dart';
 
@@ -8,7 +9,7 @@ class HttpQuestionRepository implements QuestionRepository {
   HttpQuestionRepository({http.Client? client, Uri? baseUri})
       : _client = client ?? http.Client(),
         _ownsClient = client == null,
-        _baseUri = baseUri ?? Uri.parse('https://8378-102-212-68-43.ngrok-free.app');
+        _baseUri = baseUri ?? Uri.parse('${ApiConstants.baseUrl}');
 
   final http.Client _client;
   final bool _ownsClient;

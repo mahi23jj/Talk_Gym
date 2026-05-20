@@ -4,14 +4,15 @@ import 'dart:io';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:talk_gym/core/constants/api_constants.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_exception.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_response.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_user.dart';
 
 class MockAuthApiService {
-  static const String _loginEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/login';
-  static const String _signInEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/signin';
-  static const String _googleEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/google';
+  static const String _loginEndpoint = '${ApiConstants.baseUrl}/api/v1/auth/login';
+  static const String _signInEndpoint = '${ApiConstants.baseUrl}/api/v1/auth/signin';
+  static const String _googleEndpoint = '${ApiConstants.baseUrl}/api/v1/auth/google';
 
   // ignore: non_constant_identifier_names
   final String google_client_id = '949578675976-tdju2r1gntljnt70q3qld0to9o4akhcf.apps.googleusercontent.com';

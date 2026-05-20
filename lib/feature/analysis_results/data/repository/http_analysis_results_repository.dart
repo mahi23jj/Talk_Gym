@@ -12,7 +12,7 @@ class HttpAnalysisResultsRepository implements AnalysisResultsRepository {
     Uri? baseUri,
   })  : _client = client ?? http.Client(),
        _ownsClient = client == null,
-       _baseUri = baseUri ?? Uri.parse('https://3130-196-190-62-89.ngrok-free.app');
+       _baseUri = baseUri ?? Uri.parse('https://8378-102-212-68-43.ngrok-free.app');
 
   final int attemptId;
   final http.Client _client;

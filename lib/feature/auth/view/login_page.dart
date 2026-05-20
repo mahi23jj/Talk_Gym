@@ -260,7 +260,9 @@ class _LoginPageState extends State<LoginPage> {
                   const SizedBox(height: 20),
                   AuthGoogleButton(
                     label: 'Sign in with Google',
-                    onPressed: isLoading ? null : _showGoogleBottomSheet,
+                    onPressed: isLoading
+                        ? null
+                        : () => context.read<AuthBloc>().add(const GoogleAuthRequested()),
                   ),
                   const SizedBox(height: 24),
                   Row(

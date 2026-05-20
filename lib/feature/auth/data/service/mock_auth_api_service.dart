@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'dart:io';
+
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:talk_gym/feature/auth/data/model/auth_exception.dart';
@@ -7,9 +9,9 @@ import 'package:talk_gym/feature/auth/data/model/auth_response.dart';
 import 'package:talk_gym/feature/auth/data/model/auth_user.dart';
 
 class MockAuthApiService {
-  static const String _loginEndpoint = 'https://3130-196-190-62-89.ngrok-free.app/api/v1/auth/login';
-  static const String _signInEndpoint = 'https://3130-196-190-62-89.ngrok-free.app/api/v1/auth/signin';
-  static const String _googleEndpoint = 'https://3130-196-190-62-89.ngrok-free.app/api/v1/auth/google';
+  static const String _loginEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/login';
+  static const String _signInEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/signin';
+  static const String _googleEndpoint = 'https://8378-102-212-68-43.ngrok-free.app/api/v1/auth/google';
 
   // ignore: non_constant_identifier_names
   final String google_client_id = '949578675976-tdju2r1gntljnt70q3qld0to9o4akhcf.apps.googleusercontent.com';
@@ -80,10 +82,9 @@ class MockAuthApiService {
   }
 
   Future<AuthResponse> googleAuth() async {
-    final GoogleSignIn googleSignIn = GoogleSignIn(
-      scopes: const <String>['email', 'profile'],
-      serverClientId: google_client_id,
-    );
+    final GoogleSignIn googleSignIn = Platform.isAndroid
+        ? GoogleSignIn(scopes: const <String>['email', 'profile'])
+        : GoogleSignIn(scopes: const <String>['email', 'profile'], serverClientId: google_client_id);
 
     final GoogleSignInAccount? account = await googleSignIn.signIn();
     if (account == null) {
@@ -92,14 +93,19 @@ class MockAuthApiService {
 
     final GoogleSignInAuthentication auth = await account.authentication;
     final String? idToken = auth.idToken;
-    if (idToken == null || idToken.isEmpty) {
+    final String? accessToken = auth.accessToken;
+    final String? tokenToSend = (idToken != null && idToken.isNotEmpty) ? idToken : (accessToken ?? '');
+
+    print('Google sign in successful. ID Token: $idToken, Access Token: $accessToken');
+    
+    if (tokenToSend == null || tokenToSend.isEmpty) {
       throw const AuthException('Unable to retrieve Google token');
     }
 
     final http.Response response = await _client.post(
       Uri.parse(_googleEndpoint),
       headers: <String, String>{'Content-Type': 'application/json'},
-      body: jsonEncode(<String, String>{'token': idToken}),
+      body: jsonEncode(<String, String>{'token': tokenToSend}),
     );
 
     final Map<String, dynamic> json = _decodeBody(response.body);

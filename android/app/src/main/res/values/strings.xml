@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App name -->
+    <string name="app_name">talk_gym</string>
+
+    <!-- Web client ID (OAuth 2.0 client ID for web/app server). Replace with your own. -->
+    <string name="default_web_client_id">949578675976-tdju2r1gntljnt70q3qld0to9o4akhcf.apps.googleusercontent.com</string>
+
+    <!-- Optional server client id alias used in code if needed -->
+    <string name="server_client_id">949578675976-tdju2r1gntljnt70q3qld0to9o4akhcf.apps.googleusercontent.com</string>
+</resources>

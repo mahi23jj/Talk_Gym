@@ -472,7 +472,9 @@ class _SignUpPageState extends State<SignUpPage> {
                   const SizedBox(height: 20),
                   AuthGoogleButton(
                     label: 'Sign up with Google',
-                    onPressed: isLoading ? null : _showGoogleBottomSheet,
+                    onPressed: isLoading
+                        ? null
+                        : () => context.read<AuthBloc>().add(const GoogleAuthRequested()),
                   ),
                   const SizedBox(height: 16),
                   Wrap(

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/feature/profile/presentation/views/profile_page.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/question/view/question_detail_page.dart';
 // import 'package:talk_gym/feature/behavioral_training/screens/training_intro_screen.dart';
@@ -103,22 +104,18 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                     pinned: true,
                     floating: false,
                     elevation: 0,
-                    toolbarHeight: 92,
-                    surfaceTintColor: Colors.transparent,
-                    backgroundColor: theme.scaffoldBackgroundColor,
                     actions: <Widget>[
                       IconButton(
-                        tooltip: 'Open AI Analysis',
+                        tooltip: 'Profile',
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text(
-                                'Open analysis from a submitted attempt first.',
-                              ),
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => const ProfilePage(),
                             ),
                           );
                         },
-                        icon: const Icon(Icons.analytics_outlined),
+                        icon: const Icon(Icons.person_outline),
                       ),
                     ],
                     flexibleSpace: FlexibleSpaceBar(

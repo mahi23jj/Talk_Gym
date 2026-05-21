@@ -343,6 +343,8 @@ class QuestionAnswerSubmissionService {
 
     await pollResultUntilDone(jobId: jobId, bearerToken: bearerToken);
 
+    print('Analysis completed for jobId=$jobId');
+
     return jobId;
   }
 

@@ -396,7 +396,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                   Expanded(
                                     child: ElevatedButton(
                                       onPressed: () {
-                                        if (analysis.isBehavioralTraining) {
+                                       /*  if (analysis.isBehavioralTraining) {
                                           Navigator.of(context).push(
                                             MaterialPageRoute<void>(
                                               builder: (_) => BehavioralTrainingIntroScreen(
@@ -406,7 +406,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                             ),
                                           );
                                           return;
-                                        }
+                                        } */
 
                                         final QuestionItem question = QuestionItem(
                                           id: -1,

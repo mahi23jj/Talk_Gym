@@ -49,10 +49,10 @@ class StarMetrics {
 
   factory StarMetrics.fromJson(Map<String, dynamic> json) {
     return StarMetrics(
-      situation: json['s'],
-      task: json['t'],
-      action: json['a'],
-      result: json['r'],
+      situation: _asString(json['s']),
+      task: _asString(json['t']),
+      action: _asString(json['a']),
+      result: _asString(json['r']),
     );
   }
 
@@ -265,17 +265,23 @@ class AnalysisResult {
     final Map<String, dynamic> analysis =
         Map<String, dynamic>.from(jsons['analysis'] ?? jsons);
 
+    final Map<String, dynamic> payload = Map<String, dynamic>.from(
+      analysis['analysis'] is Map
+          ? Map<String, dynamic>.from(analysis['analysis'] as Map)
+          : analysis,
+    );
+
     final Map<String, dynamic> raw = Map<String, dynamic>.from(
-      analysis['raw_analysis_json'] ?? analysis['rawAnalysisJson'] ?? analysis,
+      payload['raw_analysis_json'] ?? payload['rawAnalysisJson'] ?? payload,
     );
 
     final Map<String, dynamic> starExample = Map<String, dynamic>.from(
-      analysis['star_example'] ?? raw['star_example'] ?? <String, dynamic>{},
+      payload['star_example'] ?? raw['star_example'] ?? <String, dynamic>{},
     );
 
     final Map<int, String> transcriptSentences = <int, String>{};
     final dynamic rawTranscriptSentences =
-        raw['transcript_sentences'] ?? analysis['transcript_sentences'];
+      raw['transcript_sentences'] ?? payload['transcript_sentences'];
     if (rawTranscriptSentences is List) {
       for (final dynamic item in rawTranscriptSentences) {
         if (item is Map) {
@@ -297,7 +303,8 @@ class AnalysisResult {
     }
 
     final List<SentenceFeedback> sentenceFeedback = <SentenceFeedback>[];
-    final dynamic rawFeedback = raw['sentence_feedback'] ?? analysis['sentence_feedback'];
+    final dynamic rawFeedback =
+      raw['sentence_feedback'] ?? payload['sentence_feedback'];
     if (rawFeedback is List) {
       for (final dynamic item in rawFeedback) {
         if (item is Map) {
@@ -310,7 +317,7 @@ class AnalysisResult {
 
     final List<BehavioralQuestions> behavioralQuestions = <BehavioralQuestions>[];
     final dynamic rawQuestions =
-        raw['behavioral_questions'] ?? analysis['behavioral_questions'];
+      raw['behavioral_questions'] ?? payload['behavioral_questions'];
     if (rawQuestions is List) {
       for (final dynamic item in rawQuestions) {
         if (item is Map) {
@@ -322,7 +329,7 @@ class AnalysisResult {
     }
 
     final List<String> flags = <String>[];
-    final dynamic rawFlags = raw['flags'] ?? analysis['flags'];
+    final dynamic rawFlags = raw['flags'] ?? payload['flags'];
     if (rawFlags is List) {
       for (final dynamic flag in rawFlags) {
         final String value = _asString(flag).trim();
@@ -333,25 +340,25 @@ class AnalysisResult {
     }
 
     return AnalysisResult(
-      overallScore: _asInt(analysis['score'] ?? raw['overall_score']),
-      transcript: _asString(raw['transcript'] ?? analysis['transcript']),
+      overallScore: _asInt(payload['score'] ?? raw['overall_score']),
+      transcript: _asString(raw['transcript'] ?? payload['transcript']),
       transcriptSentences: transcriptSentences,
       contentMetrics: ContentMetrics.fromJson(
         Map<String, dynamic>.from(
-          raw['content'] ?? analysis['content'] ?? <String, dynamic>{},
+          raw['content'] ?? payload['content'] ?? <String, dynamic>{},
         ),
       ),
       behavioralMetrics: BehavioralMetrics.fromJson(
         Map<String, dynamic>.from(
-          raw['behavioral'] ?? analysis['behavioral'] ?? <String, dynamic>{},
+          raw['behavioral'] ?? payload['behavioral'] ?? <String, dynamic>{},
         ),
       ),
       flags: flags,
       sentenceFeedback: sentenceFeedback,
       primaryTrainingMode: _asString(
-        raw['primary_training_mode'] ?? analysis['primary_training_mode'],
+        raw['primary_training_mode'] ?? payload['primary_training_mode'],
       ),
-      shortFeedback: _asString(raw['short_feedback'] ?? analysis['short_feedback']),
+      shortFeedback: _asString(raw['short_feedback'] ?? payload['short_feedback']),
       starExample: StarMetrics.fromJson(starExample),
       behavioralQuestions: behavioralQuestions,
     );

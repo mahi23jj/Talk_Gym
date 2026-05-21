@@ -40,6 +40,8 @@ class HttpAnalysisResultsRepository implements AnalysisResultsRepository {
         'Failed to fetch analysis result. HTTP ${response.statusCode}: ${response.body}',
       );
     }
+    
+    print('Received analysis response: ${response.body}');
 
     final dynamic decoded = jsonDecode(response.body);
     if (decoded is! Map) {

@@ -96,6 +96,151 @@ class BehavioralMetrics {
 }
 
 @immutable
+class VoiceConfidenceMetrics {
+  const VoiceConfidenceMetrics({
+    required this.score,
+    required this.level,
+  });
+
+  final double score;
+  final String level;
+
+  factory VoiceConfidenceMetrics.fromJson(Map<String, dynamic> json) {
+    return VoiceConfidenceMetrics(
+      score: _asDouble(json['score']),
+      level: _asString(json['level']),
+    );
+  }
+}
+
+@immutable
+class VoiceDeliveryMetrics {
+  const VoiceDeliveryMetrics({
+    required this.speechRateWps,
+    required this.pace,
+    required this.tip,
+  });
+
+  final double speechRateWps;
+  final String pace;
+  final String tip;
+
+  factory VoiceDeliveryMetrics.fromJson(Map<String, dynamic> json) {
+    return VoiceDeliveryMetrics(
+      speechRateWps: _asDouble(json['speech_rate_wps']),
+      pace: _asString(json['pace']),
+      tip: _asString(json['tip']),
+    );
+  }
+}
+
+@immutable
+class VoiceNervousnessMetrics {
+  const VoiceNervousnessMetrics({
+    required this.score,
+    required this.level,
+    required this.tip,
+  });
+
+  final double score;
+  final String level;
+  final String tip;
+
+  factory VoiceNervousnessMetrics.fromJson(Map<String, dynamic> json) {
+    return VoiceNervousnessMetrics(
+      score: _asDouble(json['score']),
+      level: _asString(json['level']),
+      tip: _asString(json['tip']),
+    );
+  }
+}
+
+@immutable
+class VoiceToneMetrics {
+  const VoiceToneMetrics({
+    required this.variationScore,
+    required this.level,
+    required this.tip,
+  });
+
+  final int variationScore;
+  final String level;
+  final String tip;
+
+  factory VoiceToneMetrics.fromJson(Map<String, dynamic> json) {
+    return VoiceToneMetrics(
+      variationScore: _asInt(json['variation_score']),
+      level: _asString(json['level']),
+      tip: _asString(json['tip']),
+    );
+  }
+}
+
+@immutable
+class VoicePausingMetrics {
+  const VoicePausingMetrics({
+    required this.averagePauseSeconds,
+    required this.longPauses,
+    required this.silencePercent,
+    required this.summary,
+  });
+
+  final double averagePauseSeconds;
+  final int longPauses;
+  final double silencePercent;
+  final String summary;
+
+  factory VoicePausingMetrics.fromJson(Map<String, dynamic> json) {
+    return VoicePausingMetrics(
+      averagePauseSeconds: _asDouble(json['average_pause_seconds']),
+      longPauses: _asInt(json['long_pauses']),
+      silencePercent: _asDouble(json['silence_percent']),
+      summary: _asString(json['summary']),
+    );
+  }
+}
+
+@immutable
+class VoiceMetrics {
+  const VoiceMetrics({
+    required this.confidence,
+    required this.delivery,
+    required this.nervousness,
+    required this.voiceTone,
+    required this.pausing,
+    required this.summary,
+  });
+
+  final VoiceConfidenceMetrics confidence;
+  final VoiceDeliveryMetrics delivery;
+  final VoiceNervousnessMetrics nervousness;
+  final VoiceToneMetrics voiceTone;
+  final VoicePausingMetrics pausing;
+  final String summary;
+
+  factory VoiceMetrics.fromJson(Map<String, dynamic> json) {
+    return VoiceMetrics(
+      confidence: VoiceConfidenceMetrics.fromJson(
+        Map<String, dynamic>.from(json['confidence'] ?? <String, dynamic>{}),
+      ),
+      delivery: VoiceDeliveryMetrics.fromJson(
+        Map<String, dynamic>.from(json['delivery'] ?? <String, dynamic>{}),
+      ),
+      nervousness: VoiceNervousnessMetrics.fromJson(
+        Map<String, dynamic>.from(json['nervousness'] ?? <String, dynamic>{}),
+      ),
+      voiceTone: VoiceToneMetrics.fromJson(
+        Map<String, dynamic>.from(json['voice_tone'] ?? <String, dynamic>{}),
+      ),
+      pausing: VoicePausingMetrics.fromJson(
+        Map<String, dynamic>.from(json['pausing'] ?? <String, dynamic>{}),
+      ),
+      summary: _asString(json['summary']),
+    );
+  }
+}
+
+@immutable
 class BehavioralQuestions {
   const BehavioralQuestions({
     required this.question,
@@ -177,6 +322,7 @@ class AnalysisResult {
     required this.shortFeedback,
     required this.starExample,
     required this.behavioralQuestions,
+    required this.voiceMetrics,
   });
 
   final int overallScore;
@@ -190,10 +336,9 @@ class AnalysisResult {
   final String shortFeedback;
   final StarMetrics starExample;
   final List<BehavioralQuestions> behavioralQuestions;
+  final VoiceMetrics voiceMetrics;
 
   bool get isBehavioralTraining => primaryTrainingMode == 'behavioral_training';
-
-  List<BehavioralQuestions> get behavioral_questions => behavioralQuestions;
 
   /* factory AnalysisResult.fromJson(Map<String, dynamic> json) {
     final Map<int, String> transcriptSentences = <int, String>{};
@@ -361,6 +506,11 @@ class AnalysisResult {
       shortFeedback: _asString(raw['short_feedback'] ?? payload['short_feedback']),
       starExample: StarMetrics.fromJson(starExample),
       behavioralQuestions: behavioralQuestions,
+      voiceMetrics: VoiceMetrics.fromJson(
+        Map<String, dynamic>.from(
+          raw['voice_metrics'] ?? payload['voice_metrics'] ?? <String, dynamic>{},
+        ),
+      ),
     );
   }
 
@@ -378,3 +528,13 @@ int _asInt(dynamic value) {
 }
 
 String _asString(dynamic value) => value?.toString() ?? '';
+
+double _asDouble(dynamic value) {
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}

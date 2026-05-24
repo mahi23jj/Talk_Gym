@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/analysis_results/data/repository/http_analysis_results_repository.dart';
-import 'package:talk_gym/feature/behavioral_training/screens/training_intro_screen.dart';
 import 'package:talk_gym/feature/analysis_results/viewmodel/analysis_results_bloc.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/star_training/view/star_training_page.dart';
@@ -340,6 +339,16 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                               ),
                               const SizedBox(height: 18),
                               _SectionLabel(
+                                title: 'Voice metrics',
+                                subtitle:
+                                    'Confidence, pacing, tone variation, and pauses from your delivery.',
+                              ),
+                              const SizedBox(height: 12),
+                              _VoiceMetricsCard(
+                                metrics: analysis.voiceMetrics,
+                              ),
+                              const SizedBox(height: 18),
+                              _SectionLabel(
                                 title: 'Flags',
                                 subtitle:
                                     'Patterns that should be tightened before the next interview step.',
@@ -659,6 +668,221 @@ class _BehaviorMetricCard extends StatelessWidget {
           const SizedBox(height: 12),
           Text(description, style: Theme.of(context).textTheme.bodyMedium),
         ],
+      ),
+    );
+  }
+}
+
+class _VoiceMetricsCard extends StatelessWidget {
+  const _VoiceMetricsCard({required this.metrics});
+
+  final VoiceMetrics metrics;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              Expanded(
+                child: Text(
+                  metrics.summary.isEmpty
+                      ? 'Voice delivery overview'
+                      : metrics.summary,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              _PillBadge(
+                text: metrics.confidence.level,
+                backgroundColor: const Color(0xFFEAF4EE),
+                foregroundColor: AppColors.successDark,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: <Widget>[
+              _VoiceStatTile(
+                label: 'Confidence',
+                value: metrics.confidence.score.toStringAsFixed(1),
+                detail: metrics.confidence.level,
+              ),
+              _VoiceStatTile(
+                label: 'Speech rate',
+                value: '${metrics.delivery.speechRateWps.toStringAsFixed(1)} wps',
+                detail: metrics.delivery.pace,
+              ),
+              _VoiceStatTile(
+                label: 'Nervousness',
+                value: metrics.nervousness.score.toStringAsFixed(1),
+                detail: metrics.nervousness.level,
+              ),
+              _VoiceStatTile(
+                label: 'Tone variation',
+                value: metrics.voiceTone.variationScore.toString(),
+                detail: metrics.voiceTone.level,
+              ),
+              _VoiceStatTile(
+                label: 'Average pause',
+                value: '${metrics.pausing.averagePauseSeconds.toStringAsFixed(2)}s',
+                detail: '${metrics.pausing.longPauses} long pauses',
+              ),
+              _VoiceStatTile(
+                label: 'Silence',
+                value: '${metrics.pausing.silencePercent.toStringAsFixed(1)}%',
+                detail: metrics.pausing.summary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _MiniMetricBar(
+            label: 'Delivery tip',
+            text: metrics.delivery.tip,
+          ),
+          const SizedBox(height: 10),
+          _MiniMetricBar(
+            label: 'Nervousness tip',
+            text: metrics.nervousness.tip,
+          ),
+          const SizedBox(height: 10),
+          _MiniMetricBar(
+            label: 'Tone tip',
+            text: metrics.voiceTone.tip,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VoiceStatTile extends StatelessWidget {
+  const _VoiceStatTile({
+    required this.label,
+    required this.value,
+    required this.detail,
+  });
+
+  final String label;
+  final String value;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 150,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textTertiary,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniMetricBar extends StatelessWidget {
+  const _MiniMetricBar({required this.label, required this.text});
+
+  final String label;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBackground,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.cardBorder),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: AppColors.textTertiary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            text.isEmpty ? 'No tip available.' : text,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: AppColors.textSecondary,
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PillBadge extends StatelessWidget {
+  const _PillBadge({
+    required this.text,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String text;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: foregroundColor,
+          fontWeight: FontWeight.w700,
+        ),
       ),
     );
   }

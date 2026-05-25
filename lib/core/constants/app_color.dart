@@ -14,7 +14,7 @@ class AppTheme {
   static const Color graySubtle = Color(0xFFEEEEEE);
 
   static ThemeData lightTheme() {
-    final colorScheme = ColorScheme.fromSeed(
+    final ColorScheme colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.accent,
       brightness: Brightness.light,
       primary: AppColors.accent,
@@ -94,7 +94,7 @@ class AppTheme {
   }
 
   static ThemeData darkTheme() {
-    final colorScheme = ColorScheme.fromSeed(
+    final ColorScheme colorScheme = ColorScheme.fromSeed(
       seedColor: AppColors.darkAccent,
       brightness: Brightness.dark,
       primary: AppColors.darkAccent,

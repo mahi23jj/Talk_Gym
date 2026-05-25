@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
-import 'package:talk_gym/core/appcolor.dart';
+import 'package:talk_gym/core/constants/app_color.dart';
 import 'package:talk_gym/core/Theme/theme_provider.dart';
 import 'package:talk_gym/core/navigation/app_routes.dart';
 import 'package:talk_gym/feature/auth/data/repository/auth_repository.dart';
@@ -11,6 +11,7 @@ import 'package:talk_gym/feature/auth/view/forgot_password_page.dart';
 import 'package:talk_gym/feature/auth/view/login_page.dart';
 import 'package:talk_gym/feature/auth/view/sign_up_page.dart';
 import 'package:talk_gym/feature/auth/viewmodel/auth_bloc.dart';
+import 'package:talk_gym/feature/onbording/splashScreen.dart';
 import 'package:talk_gym/feature/question/data/repository/http_question_repository.dart';
 import 'package:talk_gym/feature/question/view/question_listing_page.dart';
 import 'package:talk_gym/feature/question/viewmodel/question_listing_bloc.dart';
@@ -40,7 +41,7 @@ class TalkGymApp extends StatelessWidget {
                 theme: AppTheme.lightTheme(),
                 darkTheme: AppTheme.darkTheme(),
                 themeMode: themeProvider.themeMode,
-                initialRoute: AppRoutes.login,
+                home: const SplashScreen(),
                 routes: <String, WidgetBuilder>{
                   AppRoutes.login: (_) => const LoginPage(),
                   AppRoutes.signUp: (_) => const SignUpPage(),

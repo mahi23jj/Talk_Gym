@@ -7,6 +7,7 @@ import 'package:talk_gym/core/appcolor.dart';
 import 'package:talk_gym/feature/analysis_results/data/model/analysis_result.dart';
 import 'package:talk_gym/feature/analysis_results/data/repository/http_analysis_results_repository.dart';
 import 'package:talk_gym/feature/analysis_results/viewmodel/analysis_results_bloc.dart';
+import 'package:talk_gym/feature/behavioral_training/screens/training_intro_screen.dart';
 import 'package:talk_gym/feature/question/data/model/question_item.dart';
 import 'package:talk_gym/feature/star_training/view/star_training_page.dart';
 
@@ -417,6 +418,15 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                           return;
                                         } */
 
+                                        Navigator.of(context).push(
+                                            MaterialPageRoute<void>(
+                                              builder: (_) => BehavioralTrainingIntroScreen(
+                                                analysisResult: analysis,
+                                                finalAttemptId: widget.attemptId,
+                                              ),
+                                            ),
+                                          );
+
                                         final QuestionItem question = QuestionItem(
                                           id: -1,
                                           title: analysis.primaryTrainingMode,
@@ -429,7 +439,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                           dayUnlock: 1,
                                         );
 
-                                        Navigator.of(context).push(
+                          /*               Navigator.of(context).push(
                                           MaterialPageRoute<void>(
                                             builder: (_) => StarTrainingPage(
                                               question: question,
@@ -437,7 +447,7 @@ class _AnalysisResultsViewState extends State<_AnalysisResultsView>
                                               attemptid: widget.attemptId,
                                             ),
                                           ),
-                                        );
+                                        ); */
                                       },
 
                                       style: ElevatedButton.styleFrom(

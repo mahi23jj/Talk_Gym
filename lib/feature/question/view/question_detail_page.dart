@@ -376,11 +376,13 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
         if (attemptId == 0) {
           throw StateError('Missing attempt id for final interview.');
         }
-        final String sessionId = await _submissionService.submitFinalAnswer(
+        final Map<String, dynamic> result = await _submissionService.submitFinalAnswer(
           attemptId: attemptId,
           durationSeconds: _recordingSeconds,
           voiceFilePath: _recordedAudioPath!,
         );
+        final int sessionId = result['session_id'] as int;
+        final int jobId = result['job_id'] as int;
         if (!mounted) {
           return;
         }
@@ -402,7 +404,7 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                 ) {
                   return FadeTransition(
                     opacity: animation,
-                    child: FinalAnalysisPage(sessionId: sessionId),
+                    child: FinalAnalysisPage(sessionId: sessionId, jobId: jobId),
                   );
                 },
           ),
@@ -1450,33 +1452,46 @@ class _SubmissionLoadingCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 220,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      width: 240,
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _kBorder),
+        boxShadow: const <BoxShadow>[
+          BoxShadow(
+            color: Color.fromRGBO(0, 0, 0, 0.06),
+            blurRadius: 18,
+            offset: Offset(0, 8),
+          ),
+        ],
       ),
-      child: const Column(
+      child: Column(
         mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          SizedBox(
-            width: 24,
-            height: 24,
-            child: CircularProgressIndicator(strokeWidth: 2.4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image.asset(
+              'assets/img/wave.gif',
+              width: 84,
+              height: 84,
+              fit: BoxFit.cover,
+              gaplessPlayback: true,
+              filterQuality: FilterQuality.medium,
+            ),
           ),
-          SizedBox(height: 10),
-          Text(
+          const SizedBox(height: 12),
+          const Text(
             'Analyzing your answer...',
             style: TextStyle(
               color: _kPrimaryText,
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
             ),
             textAlign: TextAlign.center,
           ),
-          SizedBox(height: 4),
-          Text(
+          const SizedBox(height: 4),
+          const Text(
             'Please wait while we process audio',
             style: TextStyle(color: _kSecondaryText, fontSize: 12),
             textAlign: TextAlign.center,

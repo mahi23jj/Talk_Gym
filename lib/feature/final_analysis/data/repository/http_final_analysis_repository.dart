@@ -9,7 +9,7 @@ class HttpFinalAnalysisRepository implements FinalAnalysisRepository {
   final QuestionAnswerSubmissionService _service;
 
   @override
-  Future<FinalInterviewResult> getFinalResult(String sessionId) {
-    return _service.fetchFinalResult(sessionId: sessionId);
+  Future<FinalInterviewResult> getFinalResult( int sessionId,  int jobId) {
+    return _service.pollFinalResultUntilCompleted(sessionId: sessionId, jobId: jobId);
   }
 }

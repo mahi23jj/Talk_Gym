@@ -34,13 +34,16 @@ class FinalAnalysisState {
 class FinalAnalysisCubit extends Cubit<FinalAnalysisState> {
   FinalAnalysisCubit({
     required FinalAnalysisRepository repository,
-    required String sessionId,
+    required int sessionId,
+    required int jobId,
   }) : _repository = repository,
        _sessionId = sessionId,
+       _jobId = jobId,
        super(const FinalAnalysisState());
 
   final FinalAnalysisRepository _repository;
-  final String _sessionId;
+  final int _sessionId;
+  final int _jobId;
 
   Future<void> load() async {
     emit(state.copyWith(status: FinalAnalysisStatus.loading, clearError: true));
@@ -59,10 +62,10 @@ class FinalAnalysisCubit extends Cubit<FinalAnalysisState> {
     while (DateTime.now().difference(start) < timeout) {
       try {
         final FinalInterviewResult result = await _repository.getFinalResult(
-          _sessionId,
+          _sessionId , _jobId,
         );
         final String status = result.status.toLowerCase();
-        if (status == 'completed') {
+        if (status == 'done' || status == 'completed') {
           emit(
             state.copyWith(
               status: FinalAnalysisStatus.success,

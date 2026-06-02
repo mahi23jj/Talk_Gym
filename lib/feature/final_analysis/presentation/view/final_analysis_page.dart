@@ -7,8 +7,9 @@ import 'package:talk_gym/feature/final_analysis/data/repository/http_final_analy
 import 'package:talk_gym/feature/final_analysis/presentation/viewmodel/final_analysis_cubit.dart';
 
 class FinalAnalysisPage extends StatelessWidget {
-  const FinalAnalysisPage({required this.sessionId, super.key});
-  final String sessionId;
+  const FinalAnalysisPage({required this.sessionId, super.key , required this.jobId});
+  final int sessionId;
+  final int jobId;
 
   @override
   Widget build(BuildContext context) {
@@ -16,6 +17,7 @@ class FinalAnalysisPage extends StatelessWidget {
       create: (_) => FinalAnalysisCubit(
         repository: HttpFinalAnalysisRepository(),
         sessionId: sessionId,
+        jobId: jobId,
       )..load(),
       child: const _FinalAnalysisView(),
     );

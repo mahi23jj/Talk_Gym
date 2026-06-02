@@ -107,7 +107,7 @@ class QuestionAnswerSubmissionService {
     return jobId;
   }
 
-  Future<String> submitFinalAnswer({
+  Future<Map<String, dynamic>> submitFinalAnswer({
     required int attemptId,
     required int durationSeconds,
     String? bearerToken,
@@ -150,20 +150,29 @@ class QuestionAnswerSubmissionService {
     }
 
     final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
-    final String sessionId = _coerceSessionId(json['session_id']);
-    if (sessionId.isEmpty) {
+    final int? sessionId = _asInt(json['session_id']);
+    final int? jobId = _asInt(json['job_id']);
+    if (sessionId == null) {
       throw const FormatException('Final submit response missing session_id.');
     }
-    return sessionId;
+
+    if (jobId == null) {
+      throw const FormatException('Final submit response missing job_id.');
+    }
+    return {
+      'session_id': sessionId,
+      'job_id': jobId,
+    };
   }
 
   Future<FinalInterviewResult> fetchFinalResult({
-    required String sessionId,
+    required int sessionId,
+    required int jobId,
     String? bearerToken,
   }) async {
     final String resolvedBearerToken = await _resolveBearerToken(bearerToken);
     final Uri uri = _baseUri.replace(
-      path: '/api/v1/attempt/analysis/$sessionId',
+      path:'/api/v1/attempt/result/${jobId}/final/${sessionId}',
     );
 
     final http.Response response = await _client.get(
@@ -186,43 +195,124 @@ class QuestionAnswerSubmissionService {
     }
 
     final Map<String, dynamic> json = Map<String, dynamic>.from(decoded);
-    
-    // Map backend response to FinalInterviewResult format
-    final Map<String, dynamic> rawAnalysis = 
-        _asMap(json['raw_analysis_json'] ?? {});
-    
-    // Build the expected nested structure from backend flat response
+    final Map<String, dynamic> analysis = _asMap(json['analysis']);
+    final Map<String, dynamic> analysisPayload = analysis.isNotEmpty ? analysis : json;
+    final Map<String, dynamic> rawAnalysis = _asMap(
+      analysisPayload['raw_analysis_json'] ?? json['raw_analysis_json'],
+    );
+    final Map<String, dynamic> content = _asMap(rawAnalysis['content']);
+    final Map<String, dynamic> behavioral = _asMap(rawAnalysis['behavioral']);
+    final Map<String, dynamic> voiceMetrics = _asMap(
+      rawAnalysis['voice_metrics'] ?? analysisPayload['voice_metrics'],
+    );
+    final String status =
+        (_asString(
+                  analysisPayload['status'] ??
+                      json['status'] ??
+                      analysisPayload['analysis_status'],
+                ) ??
+                'processing')
+            .toLowerCase();
+    final double overallScore =
+        _asDouble(rawAnalysis['overall_score']) ??
+        _asDouble(analysisPayload['score']) ??
+        _asDouble(json['score']) ??
+        0;
+    final Map<String, dynamic> scoreMap = <String, dynamic>{
+      'clarity': content['clarity'],
+      'structure_star': content['structure_star'],
+      'specificity': content['specificity'],
+      'ownership': behavioral['ownership'],
+      'initiative': behavioral['initiative'],
+      'impact': behavioral['impact'],
+    };
+    final List<Map<String, dynamic>> rankedScores = _rankedScoreItems(scoreMap);
+
     final Map<String, dynamic> mappedJson = {
-      'status': 'completed',
-      'message': _asString(json['feedback']),
+      'status': status,
+      'message': _asString(analysisPayload['feedback'] ?? json['message']),
       'interview': {},
       'performance_summary': {
         'overall_score': {
           'initial': 0,
-          'final': _asDouble(json['score']) ?? 0,
-          'change': 0,
+          'final': overallScore,
+          'change': overallScore,
           'change_percent': 0,
-          'trend': 'stable',
+          'trend': status == 'failed' || status == 'error' ? 'regressed' : 'reviewed',
         },
-        'performance_level': 'reviewed',
-        'primary_strength': '',
-        'primary_improvement_area': '',
+        'performance_level': _asString(analysisPayload['performance_level']) ?? 'reviewed',
+        'primary_strength': _labelForScoreItem(
+          rankedScores.isNotEmpty ? rankedScores.first : null,
+        ),
+        'primary_improvement_area': _labelForScoreItem(
+          rankedScores.isNotEmpty ? rankedScores.last : null,
+        ),
       },
       'category_scores': {
-        'clarity': _buildScoreComparison(rawAnalysis['content']?['clarity']),
-        'structure_star': _buildScoreComparison(rawAnalysis['content']?['structure_star']),
-        'specificity': _buildScoreComparison(rawAnalysis['content']?['specificity']),
-        'ownership': _buildScoreComparison(rawAnalysis['behavioral']?['ownership']),
-        'initiative': _buildScoreComparison(rawAnalysis['behavioral']?['initiative']),
-        'impact': _buildScoreComparison(rawAnalysis['behavioral']?['impact']),
+        'clarity': _buildScoreComparison(content['clarity']),
+        'structure_star': _buildScoreComparison(content['structure_star']),
+        'specificity': _buildScoreComparison(content['specificity']),
+        'ownership': _buildScoreComparison(behavioral['ownership']),
+        'initiative': _buildScoreComparison(behavioral['initiative']),
+        'impact': _buildScoreComparison(behavioral['impact']),
       },
-      'final_analysis': {},
-      'improvement_analysis': {},
-      'visualization_ready': {},
+      'final_analysis': {
+        'summary': _asString(
+              rawAnalysis['short_feedback'] ??
+                  voiceMetrics['summary'] ??
+                  analysisPayload['feedback'],
+            ) ??
+            '',
+        'strengths': _analysisItemsFromScores(
+          rankedScores.take(2).toList(growable: false),
+          'Strength',
+        ),
+        'weaknesses': _analysisItemsFromScores(
+          rankedScores.reversed.take(2).toList(growable: false),
+          'Improve',
+        ),
+        'flags': rawAnalysis['flags'] ?? const <String>[],
+      },
+      'improvement_analysis': {
+        'improved_areas': rankedScores
+            .take(2)
+            .map((Map<String, dynamic> item) => item['label'])
+            .toList(growable: false),
+        'unchanged_areas': const <dynamic>[],
+        'regressed_areas': rankedScores
+            .reversed
+            .take(2)
+            .map((Map<String, dynamic> item) => <String, dynamic>{
+                  'skill': item['label'],
+                  'change': item['score'],
+                  'trend': 'low',
+                })
+            .toList(growable: false),
+      },
+      'visualization_ready': {
+        'radar_scores_initial': <String, dynamic>{
+          'clarity': 0,
+          'structure_star': 0,
+          'specificity': 0,
+          'ownership': 0,
+          'initiative': 0,
+          'impact': 0,
+        },
+        'radar_scores_final': scoreMap,
+      },
       'coaching': {
-        'behavioral_questions': rawAnalysis['behavioral_questions'] ?? [],
+        'recommended_training_mode':
+            _asString(rawAnalysis['primary_training_mode']) ?? 'behavioral_training',
+        'next_focus_skill': _labelForScoreItem(
+          rankedScores.isNotEmpty ? rankedScores.last : null,
+        ),
+        'coach_message': _asString(
+              rawAnalysis['short_feedback'] ?? voiceMetrics['summary'],
+            ) ??
+            '',
+        'followup_questions': rawAnalysis['behavioral_questions'] ?? const <dynamic>[],
       },
-      'star_rewrite_example': rawAnalysis['star_example'] ?? {},
+      'star_rewrite_example': _starRewriteFromRaw(rawAnalysis['star_example']),
       'sentence_feedback': rawAnalysis['sentence_feedback'] ?? [],
     };
 
@@ -230,16 +320,71 @@ class QuestionAnswerSubmissionService {
   }
 
   Map<String, dynamic> _buildScoreComparison(dynamic score) {
+    final double value = _asDouble(score) ?? 0;
     return {
       'initial': 0,
-      'final': _asDouble(score) ?? 0,
-      'change': 0,
-      'trend': 'stable',
+      'final': value,
+      'change': value,
+      'trend': value > 0 ? 'reviewed' : 'stable',
+    };
+  }
+
+  List<Map<String, dynamic>> _rankedScoreItems(Map<String, dynamic> scoreMap) {
+    final List<Map<String, dynamic>> items = <Map<String, dynamic>>[
+      <String, dynamic>{'label': 'Clarity', 'score': _asDouble(scoreMap['clarity']) ?? 0},
+      <String, dynamic>{'label': 'Structure STAR', 'score': _asDouble(scoreMap['structure_star']) ?? 0},
+      <String, dynamic>{'label': 'Specificity', 'score': _asDouble(scoreMap['specificity']) ?? 0},
+      <String, dynamic>{'label': 'Ownership', 'score': _asDouble(scoreMap['ownership']) ?? 0},
+      <String, dynamic>{'label': 'Initiative', 'score': _asDouble(scoreMap['initiative']) ?? 0},
+      <String, dynamic>{'label': 'Impact', 'score': _asDouble(scoreMap['impact']) ?? 0},
+    ];
+    items.sort((Map<String, dynamic> a, Map<String, dynamic> b) {
+      final int compare = (b['score'] as double).compareTo(a['score'] as double);
+      if (compare != 0) {
+        return compare;
+      }
+      return (a['label'] as String).compareTo(b['label'] as String);
+    });
+    return items;
+  }
+
+  String _labelForScoreItem(Map<String, dynamic>? item) {
+    if (item == null) {
+      return '';
+    }
+    final String label = (item['label'] as String? ?? '').trim();
+    final double score = (item['score'] as double?) ?? 0;
+    if (label.isEmpty) {
+      return '';
+    }
+    return '$label (${score.toStringAsFixed(1)}/10)';
+  }
+
+  List<Map<String, dynamic>> _analysisItemsFromScores(
+    List<Map<String, dynamic>> items,
+    String prefix,
+  ) {
+    return items
+        .map((Map<String, dynamic> item) => <String, dynamic>{
+              'title': item['label'],
+              'description': '$prefix score: ${(item['score'] as double).toStringAsFixed(1)}/10',
+            })
+        .toList(growable: false);
+  }
+
+  Map<String, dynamic> _starRewriteFromRaw(dynamic value) {
+    final Map<String, dynamic> star = _asMap(value);
+    return <String, dynamic>{
+      'situation': _asString(star['s']) ?? _asString(star['situation']) ?? '',
+      'task': _asString(star['t']) ?? _asString(star['task']) ?? '',
+      'action': _asString(star['a']) ?? _asString(star['action']) ?? '',
+      'result': _asString(star['r']) ?? _asString(star['result']) ?? '',
     };
   }
 
   Future<FinalInterviewResult> pollFinalResultUntilCompleted({
-    required String sessionId,
+    required int sessionId,
+    required int jobId,
     String? bearerToken,
     Duration pollInterval = const Duration(seconds: 2),
     Duration timeout = const Duration(minutes: 3),
@@ -249,11 +394,12 @@ class QuestionAnswerSubmissionService {
     while (DateTime.now().difference(startedAt) < timeout) {
       final FinalInterviewResult result = await fetchFinalResult(
         sessionId: sessionId,
+        jobId: jobId,
         bearerToken: bearerToken,
       );
       final String status = result.status.toLowerCase();
 
-      if (status == 'completed') {
+      if (status == 'done' || status == 'completed') {
         return result;
       }
       if (status == 'failed' || status == 'error') {
@@ -328,6 +474,8 @@ class QuestionAnswerSubmissionService {
     throw TimeoutException('Timed out while waiting for analysis result.');
   }
 
+
+
   Future<int> submitAndAwaitResult({
     required String questionId,
     required int durationSeconds,
@@ -348,6 +496,41 @@ class QuestionAnswerSubmissionService {
     return jobId;
   }
 
+
+  // summit and wait for final result (for final interview question)
+  Future<FinalInterviewResult> submitFinalAndAwaitResult({  
+    required int attemptId,
+    required int durationSeconds,
+    String? bearerToken,
+    required String voiceFilePath,
+  }) async {
+    final Map<String, dynamic> submissionResult = await submitFinalAnswer(
+      attemptId: attemptId,
+      durationSeconds: durationSeconds,
+      bearerToken: bearerToken,
+      voiceFilePath: voiceFilePath,
+    );
+
+    final int sessionId = submissionResult['session_id'];
+    final int jobId = submissionResult['job_id'];
+
+    print('Submitted final answer: sessionId=$sessionId, jobId=$jobId');
+
+    final FinalInterviewResult result = await pollFinalResultUntilCompleted(
+      sessionId: sessionId,
+      jobId: jobId,
+      bearerToken: bearerToken,
+    );
+
+    print('Final analysis completed for sessionId=$sessionId, jobId=$jobId');
+
+    return result;
+  }
+
+
+
+
+
   Future<String> _resolveBearerToken(String? bearerToken) async {
     final String token =
         (bearerToken ?? await AuthTokenStorage.getToken() ?? '').trim();
@@ -357,19 +540,6 @@ class QuestionAnswerSubmissionService {
       );
     }
     return token;
-  }
-
-  static String _coerceSessionId(dynamic value) {
-    if (value == null) {
-      return '';
-    }
-    if (value is int || value is num) {
-      return value.toString();
-    }
-    if (value is String) {
-      return value.trim();
-    }
-    return value.toString().trim();
   }
 
   int? _asInt(dynamic value) {

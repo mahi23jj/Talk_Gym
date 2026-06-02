@@ -38,34 +38,32 @@ class _BreathingGlowState extends State<BreathingGlow>
     return AnimatedBuilder(
       animation: _glowAnimation,
       builder: (context, child) {
-        return Positioned(
-          child: Container(
-            width: 180,
-            height: 180,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: RadialGradient(
-                colors: [
-                  Colors.black.withOpacity(_glowAnimation.value * 0.15),
-                  Colors.black.withOpacity(_glowAnimation.value * 0.05),
-                  Colors.transparent,
-                ],
-                radius: 1.2,
-              ),
+        return Container(
+          width: 180,
+          height: 180,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            gradient: RadialGradient(
+              colors: [
+                Colors.black.withOpacity(_glowAnimation.value * 0.15),
+                Colors.black.withOpacity(_glowAnimation.value * 0.05),
+                Colors.transparent,
+              ],
+              radius: 1.2,
             ),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(_glowAnimation.value * 0.1),
-                      blurRadius: 40,
-                      spreadRadius: 10,
-                    ),
-                  ],
-                ),
+          ),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(_glowAnimation.value * 0.1),
+                    blurRadius: 40,
+                    spreadRadius: 10,
+                  ),
+                ],
               ),
             ),
           ),

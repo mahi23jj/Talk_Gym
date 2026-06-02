@@ -8,7 +8,6 @@ import 'dart:async';
 
 import 'package:talk_gym/feature/onbording/OnboardingScreen.dart';
 
-
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -59,17 +58,13 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.lightTheme().primaryColor,
+      backgroundColor: AppTheme.pureWhite,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              AppTheme.lightTheme().primaryColor,
-              AppTheme.lightTheme().primaryColor.withOpacity(0.8),
-            ],
-            stops: const [0.0, 0.5, 1.0],
+            colors: [AppTheme.pureWhite, AppTheme.pureWhite.withOpacity(0.8)],
           ),
         ),
         child: SafeArea(
@@ -79,70 +74,68 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Breathing glow behind logo
-                  const BreathingGlow(),
-                  
-                  // Logo placeholder - replace with your asset
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppTheme.pureBlack.withOpacity(0.08),
-                          blurRadius: 30,
-                          offset: const Offset(0, 15),
-                        ),
-                        BoxShadow(
-                          color: AppTheme.pureBlack.withOpacity(0.04),
-                          blurRadius: 60,
-                          offset: const Offset(0, 30),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(60),
-                      child: BackdropFilter(
-                        filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: RadialGradient(
-                              colors: [
-                                AppTheme.graySubtle.withOpacity(0.3),
-                                Colors.transparent,
-                              ],
-                              radius: 1.2,
+                  Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Breathing glow behind logo
+                      const BreathingGlow(),
+
+                      // Logo placeholder - replace with your asset
+                      Container(
+                        width: 300,
+                        height: 300,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppTheme.pureBlack.withOpacity(0.08),
+                              blurRadius: 30,
+                              offset: const Offset(0, 15),
                             ),
-                          ),
-                          child: Image.asset(
-                            'assets/logo.jpg', // Replace with your logo asset
-                            width: 100,
-                            height: 100,
-                            errorBuilder: (_, __, ___) => Container(
-                              width: 100,
-                              height: 100,
+                            BoxShadow(
+                              color: AppTheme.pureBlack.withOpacity(0.04),
+                              blurRadius: 60,
+                              offset: const Offset(0, 30),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(32),
+                          child: BackdropFilter(
+                            filter: ImageFilter.blur(sigmaX: 0.5, sigmaY: 0.5),
+                            child: Container(
                               decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: AppTheme.pureBlack.withOpacity(0.1),
-                                  width: 1,
+                                gradient: LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: [
+                                    AppTheme.softWhite,
+                                    AppTheme.pureWhite,
+                                  ],
                                 ),
                               ),
-                              child: Icon(
-                                Icons.auto_awesome,
-                                size: 50,
-                                color: AppTheme.pureBlack.withOpacity(0.3),
+                              child: Image.asset(
+                                'assets/logo.png',
+                                width: double.infinity,
+                                height: double.infinity,
+                                fit: BoxFit.contain,
+                                errorBuilder: (_, __, ___) => Center(
+                                  child: Icon(
+                                    Icons.waves,
+                                    size: 120,
+                                    color: AppTheme.pureBlack.withOpacity(0.15),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
+                    ],
                   ),
-                  
+
                   const SizedBox(height: 32),
-                  
+
                   // App Name
                   Text(
                     'TalkGym',
@@ -160,9 +153,9 @@ class _SplashScreenState extends State<SplashScreen>
                       ],
                     ),
                   ),
-                  
+
                   const SizedBox(height: 60),
-                  
+
                   // Loading pulse animation
                   const LoadingPulse(),
                 ],

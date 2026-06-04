@@ -7,7 +7,11 @@ import 'package:talk_gym/feature/final_analysis/data/repository/http_final_analy
 import 'package:talk_gym/feature/final_analysis/presentation/viewmodel/final_analysis_cubit.dart';
 
 class FinalAnalysisPage extends StatelessWidget {
-  const FinalAnalysisPage({required this.sessionId, super.key , required this.jobId});
+  const FinalAnalysisPage({
+    required this.sessionId,
+    super.key,
+    required this.jobId,
+  });
   final int sessionId;
   final int jobId;
 
@@ -37,11 +41,21 @@ class _FinalAnalysisView extends StatelessWidget {
           builder: (BuildContext context, FinalAnalysisState state) {
             if (state.status == FinalAnalysisStatus.loading ||
                 state.status == FinalAnalysisStatus.processing) {
-              return const Center(
+              return Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: <Widget>[
-                    CircularProgressIndicator(),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.asset(
+                        'assets/img/wave.gif',
+                        width: 84,
+                        height: 84,
+                        fit: BoxFit.cover,
+                        gaplessPlayback: true,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ),
                     SizedBox(height: 10),
                     Text('Processing final interview analysis...'),
                   ],
@@ -75,18 +89,26 @@ class _FinalAnalysisView extends StatelessWidget {
             }
 
             final FinalInterviewResult result = state.result!;
-            final Map<String, ScoreComparison> categories =
-                result.categoryScores.asMap();
+            final Map<String, ScoreComparison> categories = result
+                .categoryScores
+                .asMap();
 
-            final List<String> radarLabels = result.visualizationReady.radarLabels.isNotEmpty
+            final List<String> radarLabels =
+                result.visualizationReady.radarLabels.isNotEmpty
                 ? result.visualizationReady.radarLabels
                 : categories.keys.toList();
-            final List<double> radarInitial = result.visualizationReady.radarLabels.isNotEmpty
+            final List<double> radarInitial =
+                result.visualizationReady.radarLabels.isNotEmpty
                 ? result.visualizationReady.initialScores
-                : categories.values.map((ScoreComparison e) => e.initial).toList();
-            final List<double> radarFinal = result.visualizationReady.radarLabels.isNotEmpty
+                : categories.values
+                      .map((ScoreComparison e) => e.initial)
+                      .toList();
+            final List<double> radarFinal =
+                result.visualizationReady.radarLabels.isNotEmpty
                 ? result.visualizationReady.finalScores
-                : categories.values.map((ScoreComparison e) => e.finalScore).toList();
+                : categories.values
+                      .map((ScoreComparison e) => e.finalScore)
+                      .toList();
 
             return RefreshIndicator(
               onRefresh: () => context.read<FinalAnalysisCubit>().retry(),
@@ -180,7 +202,10 @@ class _HeaderSummary extends StatelessWidget {
           Row(
             children: <Widget>[
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
@@ -197,7 +222,10 @@ class _HeaderSummary extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'Scores: ${overall.initial.toStringAsFixed(0)} → ${overall.finalScore.toStringAsFixed(0)}',
-            style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+            ),
           ),
         ],
       ),
@@ -253,7 +281,10 @@ class _SummaryCard extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             text,
-            style: const TextStyle(color: AppColors.textSecondary, height: 1.45),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              height: 1.45,
+            ),
           ),
         ],
       ),
@@ -271,7 +302,9 @@ class _SkillComparisonTile extends StatelessWidget {
     final double maxScore = max(score.initial, score.finalScore).clamp(1, 100);
     final double progress = (score.finalScore / maxScore).clamp(0, 1);
     final double delta = score.delta;
-    final Color deltaColor = delta >= 0 ? AppColors.successDark : Colors.redAccent;
+    final Color deltaColor = delta >= 0
+        ? AppColors.successDark
+        : Colors.redAccent;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
@@ -287,7 +320,10 @@ class _SkillComparisonTile extends StatelessWidget {
           Row(
             children: <Widget>[
               Expanded(
-                child: Text(label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                child: Text(
+                  label,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
               ),
               Text(
                 '${score.initial.toStringAsFixed(1)} -> ${score.finalScore.toStringAsFixed(1)}',
@@ -295,12 +331,18 @@ class _SkillComparisonTile extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 '${delta >= 0 ? '+' : ''}${delta.toStringAsFixed(1)}',
-                style: TextStyle(color: deltaColor, fontWeight: FontWeight.w700),
+                style: TextStyle(
+                  color: deltaColor,
+                  fontWeight: FontWeight.w700,
+                ),
               ),
               if (score.trend.isNotEmpty) ...<Widget>[
                 const SizedBox(width: 6),
                 Chip(
-                  label: Text(score.trend, style: const TextStyle(fontSize: 11)),
+                  label: Text(
+                    score.trend,
+                    style: const TextStyle(fontSize: 11),
+                  ),
                   visualDensity: VisualDensity.compact,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
@@ -365,7 +407,11 @@ class _ImprovementAreaCard extends StatelessWidget {
 }
 
 class _ChipWrap extends StatelessWidget {
-  const _ChipWrap({required this.label, required this.items, required this.color});
+  const _ChipWrap({
+    required this.label,
+    required this.items,
+    required this.color,
+  });
   final String label;
   final List<String> items;
   final Color color;
@@ -377,7 +423,10 @@ class _ChipWrap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 4),
           Wrap(
             spacing: 6,
@@ -385,7 +434,12 @@ class _ChipWrap extends StatelessWidget {
             children: items.isEmpty
                 ? <Widget>[const Chip(label: Text('None'))]
                 : items
-                      .map((String e) => Chip(label: Text(e), backgroundColor: color.withValues(alpha: 0.1)))
+                      .map(
+                        (String e) => Chip(
+                          label: Text(e),
+                          backgroundColor: color.withValues(alpha: 0.1),
+                        ),
+                      )
                       .toList(),
           ),
         ],
@@ -412,7 +466,10 @@ class _SkillDeltaWrap extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Text(label, style: TextStyle(color: color, fontWeight: FontWeight.w700)),
+          Text(
+            label,
+            style: TextStyle(color: color, fontWeight: FontWeight.w700),
+          ),
           const SizedBox(height: 4),
           Wrap(
             spacing: 6,
@@ -465,7 +522,10 @@ class _CoachingCard extends StatelessWidget {
           ],
           if (coaching.followupQuestions.isNotEmpty) ...<Widget>[
             const SizedBox(height: 10),
-            const Text('Follow-up questions', style: TextStyle(fontWeight: FontWeight.w700)),
+            const Text(
+              'Follow-up questions',
+              style: TextStyle(fontWeight: FontWeight.w700),
+            ),
             const SizedBox(height: 6),
             ...coaching.followupQuestions.map(
               (FollowupQuestion q) => Padding(
@@ -548,8 +608,14 @@ class _StrengthWeaknessCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                    Text(item.description, style: const TextStyle(color: AppColors.textSecondary)),
+                    Text(
+                      item.title,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      item.description,
+                      style: const TextStyle(color: AppColors.textSecondary),
+                    ),
                   ],
                 ),
               ),
@@ -586,7 +652,10 @@ class _FlagsCard extends StatelessWidget {
                 : flags
                       .map(
                         (String flag) => Chip(
-                          avatar: const Icon(Icons.warning_amber_rounded, size: 16),
+                          avatar: const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 16,
+                          ),
                           label: Text(flag),
                         ),
                       )
@@ -744,6 +813,9 @@ class _SectionTitle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800));
+    return Text(
+      title,
+      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+    );
   }
 }

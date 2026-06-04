@@ -25,11 +25,14 @@ class MockAuthApiService {
     required String usernameOrEmail,
     required String password,
   }) async {
+    final String value = usernameOrEmail.trim();
+    final bool isEmail = value.contains('@') && value.contains('.com');
+
     final http.Response response = await _client.post(
       Uri.parse(_loginEndpoint),
       headers: <String, String>{'Content-Type': 'application/json'},
       body: jsonEncode(<String, String>{
-        'email': usernameOrEmail,
+        if (isEmail) 'email': value else 'username': value,
         'password': password,
       }),
     );
@@ -40,15 +43,14 @@ class MockAuthApiService {
     }
 
     final String token = _extractAccessToken(json);
-    final bool isEmail = usernameOrEmail.contains('@');
 
     return AuthResponse(
       token: token,
       tokenType: _extractTokenType(json),
       user: AuthUser(
         id: 'local_login',
-        username: isEmail ? usernameOrEmail.split('@').first : usernameOrEmail,
-        email: isEmail ? usernameOrEmail : '',
+        username: isEmail ? value.split('@').first : value,
+        email: isEmail ? value : '',
       ),
     );
   }
@@ -95,11 +97,9 @@ class MockAuthApiService {
     final GoogleSignInAuthentication auth = await account.authentication;
     final String? idToken = auth.idToken;
     final String? accessToken = auth.accessToken;
-    final String? tokenToSend = (idToken != null && idToken.isNotEmpty) ? idToken : (accessToken ?? '');
-
-    print('Google sign in successful. ID Token: $idToken, Access Token: $accessToken');
+    final String tokenToSend = (idToken != null && idToken.isNotEmpty) ? idToken : (accessToken ?? '');
     
-    if (tokenToSend == null || tokenToSend.isEmpty) {
+    if (tokenToSend.isEmpty) {
       throw const AuthException('Unable to retrieve Google token');
     }
 

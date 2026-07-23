@@ -120,18 +120,19 @@ class _QuestionListingPageState extends State<QuestionListingPage> {
                     ],
                     flexibleSpace: FlexibleSpaceBar(
                       titlePadding: const EdgeInsets.fromLTRB(16, 16, 16, 14),
-                      title: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      title: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: <Widget>[
-                          Text(
-                            'Behavioral Questions',
-                            style: theme.textTheme.headlineMedium,
+                          CircleAvatar(
+                            radius: 22, // half of 36
+                            backgroundImage: AssetImage('assets/logo3.png'),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(width: 10),
                           Text(
-                            'Practice with real interview questions',
-                            style: theme.textTheme.bodyMedium,
+                            'Talk Gym',
+                            style: theme.textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),

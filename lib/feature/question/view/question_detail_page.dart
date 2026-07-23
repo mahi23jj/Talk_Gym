@@ -376,11 +376,12 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
         if (attemptId == 0) {
           throw StateError('Missing attempt id for final interview.');
         }
-        final Map<String, dynamic> result = await _submissionService.submitFinalAnswer(
-          attemptId: attemptId,
-          durationSeconds: _recordingSeconds,
-          voiceFilePath: _recordedAudioPath!,
-        );
+        final Map<String, dynamic> result = await _submissionService
+            .submitFinalAnswer(
+              attemptId: attemptId,
+              durationSeconds: _recordingSeconds,
+              voiceFilePath: _recordedAudioPath!,
+            );
         final int sessionId = result['session_id'] as int;
         final int jobId = result['job_id'] as int;
         if (!mounted) {
@@ -404,7 +405,10 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                 ) {
                   return FadeTransition(
                     opacity: animation,
-                    child: FinalAnalysisPage(sessionId: sessionId, jobId: jobId),
+                    child: FinalAnalysisPage(
+                      sessionId: sessionId,
+                      jobId: jobId,
+                    ),
                   );
                 },
           ),
@@ -458,7 +462,6 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
       );
       return;
     }
-
   }
 
   String get _formattedTimer {
@@ -489,14 +492,12 @@ class _QuestionDetailPageState extends State<QuestionDetailPage>
                     child: _isLoading
                         ? _buildSkeleton()
                         : SingleChildScrollView(
-                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 140),
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 30),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: <Widget>[
                                 _buildQuestionCard(),
                                 const SizedBox(height: 16),
-                                _buildCoachingTip(),
-                                const SizedBox(height: 30),
                                 _buildRecordingSection(),
                               ],
                             ),
